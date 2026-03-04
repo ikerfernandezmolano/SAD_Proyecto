@@ -1,14 +1,28 @@
 # -*- coding: utf-8 -*-
-"""
-Autor: Xabier Gabiña Barañano
-Script para la implementación del algoritmo kNN
-Recoge los datos de un fichero csv y los clasifica en función de los k vecinos más cercanos
-"""
-
+import json
 import sys
 import sklearn as sk
 import numpy as np
 import pandas as pd
+
+# ===========================
+# Funciones compartidas
+# ===========================
+
+def exampleMessage(algorithm):
+    if algorithm.lower() == 'knn':
+        print("""JSON ejemplo para kNN:
+        {
+            "data_file": "archivo csv",
+            "algorithm": "kNN",
+            "parameters": {
+                "k": valor,
+                "weights": "uniform/distance",
+                "p": [1,2]
+            }
+        }""")
+    else:
+        print("""JSON ejemplo para algoritmo:""")
 
 def load_data(file):
     """
@@ -42,7 +56,11 @@ def calculate_confusion_matrix(y_test, y_pred):
     cm = confusion_matrix(y_test, y_pred)
     return cm
 
-def kNN(data, k, weights, p):
+# ===========================
+# Algoritmo kNN
+# ===========================
+
+def kNN(data, params):
     """
     Función para implementar el algoritmo kNN
     
@@ -57,6 +75,18 @@ def kNN(data, k, weights, p):
     :return: Clasificación de los datos
     :rtype: tuple
     """
+    k = params.get('k')
+    if not isinstance(k, int) or k<=0:
+        print("Error en el valor k del algoritmo kNN.")
+        exampleMessage("kNN")
+        sys.exit(1)
+    weights = params.get('weights')
+    p = params.get('p')
+    if not isinstance(p, int) or p not in [1, 2]:
+        print("Error en el valor p del algoritmo kNN.")
+        exampleMessage("kNN")
+        sys.exit(1)
+
     # Seleccionamos las características y la clase
     X = data.iloc[:, :-1].values # Todas las columnas menos la última
     y = data.iloc[:, -1].values # Última columna
@@ -82,23 +112,40 @@ def kNN(data, k, weights, p):
     
     return y_test, y_pred
 
-if __name__ == "__main__":
-    # Comprobamos que se han introducido los parámetros correctos
-    if len(sys.argv) < 3:
-        print("Error en los parámetros de entrada")
-        print("Uso: kNN.py <fichero*> <k*> <weights> <p>")
-        sys.exit(1)
-    
-    # Cargamos los datos
-    data = load_data(sys.argv[1])
-    
-    # Implementamos el algoritmo kNN
-    y_test, y_pred = kNN(data, int(sys.argv[2]), sys.argv[3] if len(sys.argv) > 3 else 'uniform', int(sys.argv[4]) if len(sys.argv) > 4 else 2)
-    
-    # Mostramos la matriz de confusión
+# ===========================
+# Configuración inicial
+# ===========================
+
+def config(config_file):
+    with open(config_file, 'r') as f:
+        config = json.load(f)
+
+    # Cargamos datos
+    data = load_data(config["data_file"])
+
+    # Seleccionamos el algoritmo
+    algorithm = config["algorithm"]
+    params = config.get("parameters", {})
+
+    if algorithm == "kNN":
+        y_test, y_pred = kNN(data, params)
+    else:
+        raise ValueError(f"Algoritmo '{algorithm}' no soportado")
+
+    # Resultados
     print("\nMatriz de confusión:")
     print(calculate_confusion_matrix(y_test, y_pred))
 
-    # Mostramos el F-score
     print("\nF-score:")
     print(calculate_fscore(y_test, y_pred))
+
+# ===========================
+# Entrada principal
+# ===========================
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Uso: python3 main.py <config.json>")
+        sys.exit(1)
+
+    config(sys.argv[1])
