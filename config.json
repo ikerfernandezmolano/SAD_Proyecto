@@ -1,0 +1,9 @@
+{
+    "data_file": "datos_prueba.csv",
+    "algorithm": "decision_tree",
+    "parameters": {
+        "max_depth": [3, 6, 9],
+        "min_samples_leaf": [1, 2],
+        "criterion": ["gini", "entropy"]
+    }
+}
