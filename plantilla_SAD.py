@@ -16,7 +16,7 @@ def exampleMessage(algorithm):
             "data_file": "archivo csv",
             "algorithm": "kNN",
             "parameters": {
-                "k": valor,
+                "k": [valor1, valor2, ..., valorn],
                 "weights": "uniform/distance",
                 "p": [1,2]
             }
@@ -27,7 +27,7 @@ def exampleMessage(algorithm):
             "data_file": "archivo csv",
             "algorithm": "decision_tree",
             "parameters": {
-                "max_depth": [3, 6, 9],
+                "max_depth": [valor1, valor2, ..., valorn],
                 "min_samples_leaf": [1, 2],
                 "criterion": ["gini", "entropy"]
             }
