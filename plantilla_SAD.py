@@ -4,6 +4,7 @@ import sys
 import sklearn as sk
 import numpy as np
 import pandas as pd
+import csv
 
 # ===========================
 # Funciones compartidas
@@ -18,7 +19,8 @@ def exampleMessage(algorithm):
             "parameters": {
                 "k": [valor1, valor2, ..., valorn],
                 "weights": "uniform/distance",
-                "p": [1,2]
+                "p": [1,2],
+                "f_score": ["max", "min", "avg", "none"]
             }
         }""")
     elif algorithm.lower() == 'decision_tree':
@@ -43,6 +45,16 @@ def load_data(file):
     """
     data = pd.read_csv(file)
     return data
+
+def createCSV(data):
+
+    with open("datos.csv", "w", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerows(data)
+
+def add_data(csv_file,data):
+    writer.writerow([25, 180, "B"])
+    writer.writerow([30, 175, "A"])
 
 def calculate_fscore(y_test, y_pred):
     """
@@ -105,23 +117,38 @@ def kNN(data, params):
     # Dividimos los datos en entrenamiento y test
     from sklearn.model_selection import train_test_split
     np.random.seed(42)  # Set a random seed for reproducibility
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.30)
     
     # Escalamos los datos
     from sklearn.preprocessing import StandardScaler
     sc = StandardScaler()
     X_train = sc.fit_transform(X_train)
     X_test = sc.transform(X_test)
+
+    bestfscore = -1
+    bestk = 0
+    bestypred = None
+
+    createCSV(["NombreModulo", "Precisión", "Recall", f"F_Score({params.get('f_score')})"])
     
     # Entrenamos el modelo
     from sklearn.neighbors import KNeighborsClassifier
-    classifier = KNeighborsClassifier(n_neighbors = k, weights = weights, p = p)
-    classifier.fit(X_train, y_train)
+    for paramK in k:
+        classifier = KNeighborsClassifier(n_neighbors = paramK, weights = weights, p = p)
+        classifier.fit(X_train, y_train)
+
+        # Predecimos los resultados
+        y_pred = classifier.predict(X_test)
+
+        fscore_micro, fscore_macro = calculate_fscore(y_test, y_pred)
+
+        if fscore_macro > bestfscore:
+            bestfscore = fscore_macro
+            bestk = paramK
+            bestypred = y_pred
+
     
-    # Predecimos los resultados
-    y_pred = classifier.predict(X_test)
-    
-    return y_test, y_pred
+    return y_test, bestypred, bestk, bestfscore
 
 # ===========================
 # Algoritmo Arból de Decisión
