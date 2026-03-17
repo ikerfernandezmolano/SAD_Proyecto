@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 import json
 import sys
-import sklearn as sk
 import numpy as np
 import pandas as pd
 import csv
+import os
 
 # ===========================
 # Funciones compartidas
@@ -14,13 +14,17 @@ def exampleMessage(algorithm):
     if algorithm.lower() == 'knn':
         print("""JSON ejemplo para kNN:
         {
-            "data_file": "archivo csv",
+            "data_file": "file.csv",
             "algorithm": "kNN",
             "parameters": {
-                "k": [valor1, valor2, ..., valorn],
+                "k": {
+                    "valueMin": value,
+                    "valueMax": value,
+                    "step": value
+                },
                 "weights": "uniform/distance",
-                "p": [1,2],
-                "f_score": ["max", "min", "avg", "none"]
+                "p": (1,2),
+                "f_score": "macro/micro"
             }
         }""")
     elif algorithm.lower() == 'decision_tree':
@@ -32,6 +36,7 @@ def exampleMessage(algorithm):
                 "max_depth": [valor1, valor2, ..., valorn],
                 "min_samples_leaf": [1, 2],
                 "criterion": ["gini", "entropy"]
+                "f_score": ["macro", "micro", "avg", "none"]
             }
         }""")
     else:
@@ -44,19 +49,34 @@ def load_data(file):
     :return: Datos del fichero
     """
     data = pd.read_csv(file)
-    return data
 
-def createCSV(data):
+    # Limpiar strings
+    data = data.map(lambda x: x.strip() if isinstance(x, str) else x)
 
-    with open("datos.csv", "w", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerows(data)
+    # Separar X e y
+    X = data.iloc[:, :-1]
+    y = data.iloc[:, -1]
+
+    # Convertir TRUE/FALSE
+    X = X.replace({True: 1, False: 0, "TRUE": 1, "FALSE": 0})
+
+    # One-hot encoding SOLO en X
+    X = pd.get_dummies(X)
+
+    return X, y
+
+def createCSV(Fscore):
+    if not os.path.exists("Results.csv"):
+        with open("Results.csv", "w", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow(["NombreMod","Precisión","Recall",f"F_score({Fscore})"])
 
 def add_data(csv_file,data):
-    writer.writerow([25, 180, "B"])
-    writer.writerow([30, 175, "A"])
+    with open(csv_file, "a", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(data)
 
-def calculate_fscore(y_test, y_pred):
+def calculate_fscore(y_test, y_pred, f_score):
     """
     Función para calcular el F-score
     :param y_test: Valores reales
@@ -64,9 +84,22 @@ def calculate_fscore(y_test, y_pred):
     :return: F-score (micro), F-score (macro)
     """
     from sklearn.metrics import f1_score
-    fscore_micro = f1_score(y_test, y_pred, average='micro')
-    fscore_macro = f1_score(y_test, y_pred, average='macro')
-    return fscore_micro, fscore_macro
+    if f_score == "micro":
+        return f1_score(y_test, y_pred, average='micro')
+    elif f_score == "macro":
+        return f1_score(y_test, y_pred, average='macro')
+    else:
+        fscore_micro = f1_score(y_test, y_pred, average='micro')
+        fscore_macro = f1_score(y_test, y_pred, average='macro')
+        return fscore_micro, fscore_macro
+
+def calculate_prec_recall(y_test, y_pred, avg):
+    from sklearn.metrics import precision_score, recall_score
+
+    precision = precision_score(y_test, y_pred, average=avg)
+    recall = recall_score(y_test, y_pred, average=avg)
+
+    return precision, recall
 
 def calculate_confusion_matrix(y_test, y_pred):
     """
@@ -83,7 +116,7 @@ def calculate_confusion_matrix(y_test, y_pred):
 # Algoritmo kNN
 # ===========================
 
-def kNN(data, params):
+def kNN(X, y, params):
     """
     Función para implementar el algoritmo kNN
     
@@ -99,7 +132,10 @@ def kNN(data, params):
     :rtype: tuple
     """
     k = params.get('k')
-    if not isinstance(k, int) or k<=0:
+    kMin = k.get('valueMin')
+    kMax = k.get('valueMax')
+    kStep = k.get('step')
+    if not isinstance(kMin, int) or not isinstance(kMax, int) or not isinstance(kStep, int) or kMin<=0 or kMax<=0 or kStep<=0:
         print("Error en el valor k del algoritmo kNN.")
         exampleMessage("kNN")
         sys.exit(1)
@@ -109,10 +145,9 @@ def kNN(data, params):
         print("Error en el valor p del algoritmo kNN.")
         exampleMessage("kNN")
         sys.exit(1)
-
-    # Seleccionamos las características y la clase
-    X = data.iloc[:, :-1].values # Todas las columnas menos la última
-    y = data.iloc[:, -1].values # Última columna
+    f_score = params.get('f_score').lower()
+    if not isinstance(f_score, str) or f_score not in ["macro","micro","avg","none"]:
+        f_score = "macro"
     
     # Dividimos los datos en entrenamiento y test
     from sklearn.model_selection import train_test_split
@@ -125,36 +160,35 @@ def kNN(data, params):
     X_train = sc.fit_transform(X_train)
     X_test = sc.transform(X_test)
 
-    bestfscore = -1
-    bestk = 0
-    bestypred = None
-
-    createCSV(["NombreModulo", "Precisión", "Recall", f"F_Score({params.get('f_score')})"])
+    createCSV(f_score)
     
     # Entrenamos el modelo
     from sklearn.neighbors import KNeighborsClassifier
-    for paramK in k:
+    for paramK in range(kMin,kMax+1,kStep):
         classifier = KNeighborsClassifier(n_neighbors = paramK, weights = weights, p = p)
         classifier.fit(X_train, y_train)
 
         # Predecimos los resultados
         y_pred = classifier.predict(X_test)
 
-        fscore_micro, fscore_macro = calculate_fscore(y_test, y_pred)
+        data = [f"KNN_k{paramK}_p{p}_w{weights}"]
+        data.extend(calculate_prec_recall(y_test, y_pred, f_score))
+        fscore = calculate_fscore(y_test, y_pred, f_score)
 
-        if fscore_macro > bestfscore:
-            bestfscore = fscore_macro
-            bestk = paramK
-            bestypred = y_pred
+        if isinstance(fscore, tuple):
+            data.extend(fscore)
+        else:
+            data.append(fscore)
 
+        add_data("Results.csv",data)
     
-    return y_test, bestypred, bestk, bestfscore
+    return y_test, y_pred
 
 # ===========================
 # Algoritmo Arból de Decisión
 # ===========================
 
-def decision_tree(data, params):
+def decision_tree(X, y, params):
     """
     Función para implementar el algoritmo Árboles de Decisión con barrido.
     
@@ -167,10 +201,6 @@ def decision_tree(data, params):
     """
     from sklearn.tree import DecisionTreeClassifier
     from sklearn.model_selection import GridSearchCV, train_test_split
-
-    # Seleccionamos las características y la clase
-    X = data.iloc[:, :-1].values # Todas las columnas menos la última
-    y = data.iloc[:, -1].values # Última columna
     
     # Dividimos los datos en entrenamiento y test
     np.random.seed(42)
@@ -213,16 +243,16 @@ def config(config_file):
         config = json.load(f)
 
     # Cargamos datos
-    data = load_data(config["data_file"])
+    X, y = load_data(config["data_file"])
 
     # Seleccionamos el algoritmo
     algorithm = config["algorithm"]
     params = config.get("parameters", {})
 
     if algorithm == "kNN":
-        y_test, y_pred = kNN(data, params)
+        y_test, y_pred = kNN(X, y, params)
     elif algorithm == "decision_tree":
-        y_test, y_pred = decision_tree(data, params)
+        y_test, y_pred = decision_tree(X, y, params)
     else:
         raise ValueError(f"Algoritmo '{algorithm}' no soportado")
 
@@ -230,16 +260,13 @@ def config(config_file):
     print("\nMatriz de confusión:")
     print(calculate_confusion_matrix(y_test, y_pred))
 
-    print("\nF-score:")
-    print(calculate_fscore(y_test, y_pred))
-
 # ===========================
 # Entrada principal
 # ===========================
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("Uso: python3 main.py <config.json>")
+        print("Uso: python3 plantilla_SAD.py <config.json>")
         sys.exit(1)
 
     config(sys.argv[1])

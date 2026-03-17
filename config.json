@@ -4,6 +4,7 @@
     "parameters": {
         "max_depth": [3, 6, 9],
         "min_samples_leaf": [1, 2],
-        "criterion": ["gini", "entropy"]
+        "criterion": ["gini", "entropy"],
+        "f_score": "macro"
     }
 }
