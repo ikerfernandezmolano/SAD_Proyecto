@@ -1,5 +1,5 @@
 {
-    "data_file": "datos_prueba.csv",
+    "data_file": "SantanderTraHalfHalf.csv",
     "algorithm": "decision_tree",
     "parameters": {
         "max_depth": [3, 6, 9],

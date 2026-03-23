@@ -4,6 +4,7 @@ import sys
 import sklearn as sk
 import numpy as np
 import pandas as pd
+import joblib
 
 # ===========================
 # Funciones compartidas
@@ -16,7 +17,7 @@ def exampleMessage(algorithm):
             "data_file": "archivo csv",
             "algorithm": "kNN",
             "parameters": {
-                "k": [valor1, valor2, ..., valorn],
+                "k": valor,
                 "weights": "uniform/distance",
                 "p": [1,2]
             }
@@ -27,7 +28,7 @@ def exampleMessage(algorithm):
             "data_file": "archivo csv",
             "algorithm": "decision_tree",
             "parameters": {
-                "max_depth": [valor1, valor2, ..., valorn],
+                "max_depth": [3, 6, 9],
                 "min_samples_leaf": [1, 2],
                 "criterion": ["gini", "entropy"]
             }
@@ -105,7 +106,7 @@ def kNN(data, params):
     # Dividimos los datos en entrenamiento y test
     from sklearn.model_selection import train_test_split
     np.random.seed(42)  # Set a random seed for reproducibility
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
+    X_train, X_dev, y_train, y_test = train_test_split(X, y, test_size=0.25)
     
     # Escalamos los datos
     from sklearn.preprocessing import StandardScaler
@@ -147,16 +148,31 @@ def decision_tree(data, params):
     
     # Dividimos los datos en entrenamiento y test
     np.random.seed(42)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
+    X_train, X_dev, y_train, y_dev = train_test_split(X, y, test_size=0.20, stratify=y)
     
     # Obtenemos los parámetros del JSON (si no están, usamos los del guion por defecto)
-    max_depth = params.get('max_depth', [3, 6, 9])
-    min_samples_leaf = params.get('min_samples_leaf', [1, 2])
-    criterion = params.get('criterion', ['gini', 'entropy'])
-    
+    max_depth = params.get('max_depth')
+    if not isinstance(max_depth, list) or not all(isinstance(i, int) and i > 0 for i in max_depth):
+        print("Error en el valor max_depth del algoritmo Árbol de Decisión.")
+        exampleMessage("decision_tree")
+        sys.exit(1)
+        
+    min_samples_leaf = params.get('min_samples_leaf')
+    if not isinstance(min_samples_leaf, list) or not all(isinstance(i, int) and i > 0 for i in min_samples_leaf):
+        print("Error en el valor min_samples_leaf del algoritmo Árbol de Decisión.")
+        exampleMessage("decision_tree")
+        sys.exit(1)
+
+    criterion = params.get('criterion')
+    if not isinstance(criterion, list) or not all(isinstance(i, str) and i in ['gini', 'entropy'] for i in criterion):
+        print("Error en el valor criterion del algoritmo Árbol de Decisión.")
+        exampleMessage("decision_tree")
+        sys.exit(1)
+
+
     parametros_dt = {
         'max_depth': max_depth,
-        'min_samples_leaf': min_samples_leaf,
+        'min_samples_leaf': min_samples_leaf,   
         'criterion': criterion
     }
     
@@ -169,13 +185,25 @@ def decision_tree(data, params):
     print("Entrenando Árbol de Decisión y buscando los mejores parámetros...")
     clf.fit(X_train, y_train)
     
-    print("\n¡Barrido completado!")
-    print(f"Mejores parámetros encontrados: {clf.best_params_}")
+    # Guardar TODOS los resultados de los modelos en un CSV
+    # clf.cv_results_ guarda las notas de todas las combinaciones que ha probado
+    resultados_todos = pd.DataFrame(clf.cv_results_)
+    # Filtramos las columnas para ver lo importante (parámetros y nota F-score)
+    columnas_utiles = ['params', 'mean_test_score', 'std_test_score', 'rank_test_score']
+    resultados_limpios = resultados_todos[columnas_utiles].sort_values(by='rank_test_score')
+    resultados_limpios.to_csv('resultadosDeTodosModelos.csv', index=False)
+    print("-> Archivo 'resultadosDeTodosModelos.csv' generado con éxito.")
+
+    # Guardar el modelo ganador en disco
+    # Extraemos el "cerebro" ganador y lo guardamos con joblib
+    mejor_modelo = clf.best_estimator_
+    joblib.dump(mejor_modelo, 'bestmodel.pkl')
+    print("-> Modelo ganador guardado como 'bestmodel.pkl'.")
     
-    # Predecimos los resultados usando la mejor combinación que ha encontrado
-    y_pred = clf.predict(X_test)
+    # Predecimos los resultados sobre el conjunto Dev (X_dev) para ver qué tal lo hace
+    y_pred = mejor_modelo.predict(X_dev)
     
-    return y_test, y_pred
+    return y_dev, y_pred
 
 # ===========================
 # Configuración inicial
