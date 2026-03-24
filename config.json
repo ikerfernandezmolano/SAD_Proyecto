@@ -1,10 +1,15 @@
 {
     "data_file": "datos_prueba.csv",
-    "algorithm": "decision_tree",
+    "algorithm": "kNN",
+    "prediction": "Comprado",
     "parameters": {
-        "max_depth": [3, 6, 9],
-        "min_samples_leaf": [1, 2],
-        "criterion": ["gini", "entropy"],
+        "k": {
+            "valueMin": 1,
+            "valueMax": 5,
+            "step": 2
+        },
+        "weights": "uniform",
+        "p": 2,
         "f_score": "macro"
     }
 }
