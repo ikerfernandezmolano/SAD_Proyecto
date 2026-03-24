@@ -60,11 +60,12 @@ def parse_args():
     """
     parser = argparse.ArgumentParser(description="Sistema de Apoyo a la Decisión - Clasificador")
     parser.add_argument("-j", "--json", help="Archivo de configuración JSON", required=True)
-    parser.add_argument("-v", "--verbose", help="Mostrar métricas extendidas", action="store_true")
+    parser.add_argument("-v", "--verbose", help="Mostrar métricas extendidas", action="store_true") # si se pone -v o --verbose se mostrarán métricas extendidas, si no, solo las básicas
 
-    args = parser.parse_args()
+    args = parser.parse_args() # obtiene el json que le pasamos
 
     try:
+        # Se guarda el Json como diccionario en config y se guarda su contenido en args para que sea accesible desde cualquier función
         with open(args.json, 'r') as f:
             config = json.load(f)
 
@@ -330,6 +331,17 @@ def process_text(text_feature):
 
 
 def over_under_sampling():
+    """
+    Aplica técnicas de balanceo de clases (Oversampling o Undersampling)
+    sobre el conjunto de datos global para evitar sesgos en el modelo.
+    El tipo de balanceo se lee de los argumentos del JSON.
+
+    Parámetros:
+    Ninguno (utiliza las variables globales 'data' y 'args').
+
+    Retorna:
+    None (modifica el DataFrame global 'data' directamente).
+    """
     global data
     sampling_type = args.preprocessing.get("sampling", "none")
     if sampling_type == "none": return
@@ -351,7 +363,7 @@ def over_under_sampling():
         print(Fore.YELLOW + "No se pudo aplicar sampling: " + str(e) + Fore.RESET)
 
 def preprocesar_datos():
-    numerical_feature, text_feature, categorical_feature = select_features()
+    numerical_feature, text_feature, categorical_feature = select_features() # dividir los datos con los que trabajamos en numéricos, categóricos y de texto
     simplify_text(text_feature)
     cat2num(categorical_feature)
     process_missing_values(numerical_feature, categorical_feature)
@@ -401,11 +413,48 @@ def exampleMessage(algorithm):
 # Funciones calculos
 # ===========================
 
+
+# =========================================================================
+# EXPLICACIÓN DE METRICAS
+# =========================================================================
+#
+# PRECISION (Precisión):
+#    De todas las predicciones positivas que hizo el modelo, ¿cuántas
+#    eran correctas en la realidad?
+#    -> Una precisión alta indica que el modelo minimiza los falsos positivos.
+#
+# RECALL (Sensibilidad / Exhaustividad):
+#    De todos los casos positivos reales que existen en el conjunto de datos,
+#    ¿cuántos logró identificar correctamente el modelo?
+#    -> Un recall alto indica que el modelo minimiza los falsos negativos.
+#
+# F1-SCORE:
+#    La media armónica entre Precision y Recall. Es la métrica de referencia
+#    cuando se trabaja con conjuntos de datos desbalanceados.
+#       - F-SCORE MACRO: Calcula la métrica para cada clase de forma
+#         independiente y calcula su media no ponderada. Trata a todas las
+#         clases por igual, penalizando si el modelo falla en la clase minoritaria.
+#       - F-SCORE MICRO: Calcula las métricas sumando globalmente los verdaderos
+#         positivos, falsos negativos y falsos positivos. En datasets desbalanceados,
+#         la clase mayoritaria dominará el resultado.
+#
+# MATRIZ DE CONFUSION:
+#    Tabla que detalla los aciertos y errores exactos de clasificación.
+#    En clasificación binaria muestra: Verdaderos Positivos, Verdaderos Negativos,
+#    Falsos Positivos y Falsos Negativos.
+#
+# CLASSIFICATION REPORT:
+#    Genera un informe en texto plano que desglosa las métricas de Precision,
+#    Recall, F1-score y Soporte (número total de apariciones reales) para
+#    cada una de las clases evaluadas.
+# =========================================================================
+
 def calcular_metricas(y_test, y_pred):
-    requested_fscore = str(args.parameters.get("f_score", "macro")).lower()
+    requested_fscore = str(args.parameters.get("f_score", "macro")).lower() # obtenemos el tipo de fscore que queremos calcular, por defecto macro, y lo convertimos a minúsculas para evitar problemas
     if requested_fscore not in ["micro", "macro", "weighted", "none"]:
         requested_fscore = "macro"
 
+    # Cálculo de precisión, recall y fscore según el tipo solicitado (micro, macro o weighted)
     precision = precision_score(y_test, y_pred, average=requested_fscore if requested_fscore != "none" else "macro", zero_division=0)
     recall = recall_score(y_test, y_pred, average=requested_fscore if requested_fscore != "none" else "macro", zero_division=0)
     fscore = f1_score(y_test, y_pred, average=requested_fscore if requested_fscore != "none" else "macro", zero_division=0)
@@ -425,9 +474,9 @@ def calculate_fscore(y_true, y_pred):
 def calculate_classification_report(y_true, y_pred):
     return classification_report(y_true, y_pred, zero_division=0)
 
-# ===========================
+# =========================================
 # Funciones comunes para los modelos
-# ===========================
+# =========================================
 
 def divide_data():
     global data
@@ -435,13 +484,16 @@ def divide_data():
         if args.prediction not in data.columns:
             raise ValueError(f"La columna objetivo '{args.prediction}' no existe en el dataset.")
 
+        # Se separa la columna objetivo (y) del resto de características (x)
         y = data[args.prediction].copy()
         X = data.drop(columns=[args.prediction]).copy()
 
+        # Transformamos la columna objetivo a numérica si no lo es.
         if not is_numeric_dtype(y):
             le = LabelEncoder()
             y = le.fit_transform(y.astype(str))
 
+        # Dividimos los datos en entrenamiento y desarrollo (80% - 20%) de forma estratificada para mantener la proporción de clases.
         return train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
     except Exception as e:
         print(Fore.RED + "Error al dividir datos: " + str(e) + Fore.RESET)
@@ -457,6 +509,9 @@ def save_model(gs):
     Excepciones:
     - Exception: Si ocurre algún error al guardar el modelo.
 
+    Archivos generados:
+    - output/modelo.pkl: Archivo que contiene el modelo guardado en formato pickle.
+    - output/modelo.csv: Archivo CSV que contiene los parámetros probados y sus respectivas puntuaciones obtenidas durante la búsqueda de hiperparámetros.
     """
     try:
         with open('output/modelo.pkl', 'wb') as file:
@@ -595,45 +650,42 @@ def kNN():
 # ===========================
 
 def decision_tree():
-    X_train, X_dev, y_train, y_dev = divide_data()
+    """
+    Función que entrena un modelo de Árbol de Decisión utilizando GridSearchCV.
+    """
+    x_train, x_dev, y_train, y_dev = divide_data()
 
-    max_depth = args.parameters.get('max_depth')
-    if not isinstance(max_depth, list) or not all(isinstance(i, int) and i > 0 for i in max_depth):
-        print("Error en el valor max_depth del algoritmo Árbol de Decisión.")
-        exampleMessage("decision_tree")
-        sys.exit(1)
+    params = args.parameters if hasattr(args, 'parameters') else {}
 
-    min_samples_leaf = args.parameters.get('min_samples_leaf')
-    if not isinstance(min_samples_leaf, list) or not all(isinstance(i, int) and i > 0 for i in min_samples_leaf):
-        print("Error en el valor min_samples_leaf del algoritmo Árbol de Decisión.")
-        exampleMessage("decision_tree")
-        sys.exit(1)
-
-    criterion = args.parameters.get('criterion')
-    if not isinstance(criterion, list) or not all(isinstance(i, str) and i in ['gini', 'entropy'] for i in criterion):
-        print("Error en el valor criterion del algoritmo Árbol de Decisión.")
-        exampleMessage("decision_tree")
-        sys.exit(1)
-
-    parametros_dt = {
-        'max_depth': max_depth,
-        'min_samples_leaf': min_samples_leaf,
-        'criterion': criterion
+    # Extraemos los parámetros del JSON o ponemos valores por defecto si no existen
+    param_grid = {
+        'max_depth': params.get('max_depth', [None, 5, 10, 20]),
+        'min_samples_split': params.get('min_samples_split', [2, 5, 10]),
+        'min_samples_leaf': params.get('min_samples_leaf', [1, 2, 5]),
+        'criterion': params.get('criterion', ['gini', 'entropy'])
     }
 
-    dt = DecisionTreeClassifier(random_state=42)
-    clf = GridSearchCV(dt, parametros_dt, cv=5, n_jobs=-1, scoring='f1_macro')
+    # Configuramos la métrica de evaluación (F1-score por defecto macro)
+    fscore_param = params.get('f_score', 'macro').lower()
+    scoring_metric = f"f1_{fscore_param}" if fscore_param in ['macro', 'micro', 'weighted'] else 'f1_macro'
+
     print("Entrenando Árbol de Decisión y buscando los mejores parámetros...")
-    clf.fit(X_train, y_train)
+    start_time = time.time()
 
-    resultados_todos = pd.DataFrame(clf.cv_results_)
-    columnas_utiles = ['params', 'mean_test_score', 'std_test_score', 'rank_test_score']
-    resultados_limpios = resultados_todos[columnas_utiles].sort_values(by='rank_test_score')
-    resultados_limpios.to_csv('resultadosDeTodosModelos.csv', index=False)
-    print("-> Archivo 'resultadosDeTodosModelos.csv' generado con éxito.")
+    # Inicializamos el modelo y la búsqueda en rejilla (GridSearch)
+    dt = DecisionTreeClassifier(random_state=42)
+    gs = GridSearchCV(dt, param_grid, cv=5, n_jobs=-1, scoring=scoring_metric)
 
-    y_pred = clf.best_estimator_.predict(X_dev)
-    return y_dev, y_pred
+    # Entrenamos el modelo
+    gs.fit(x_train, y_train)
+
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print("Tiempo de ejecución:" + Fore.MAGENTA + f" {execution_time:.2f} " + Fore.RESET + "segundos")
+
+    # Guardamos y mostramos los resultados usando las funciones comunes
+    mostrar_resultados(gs, x_dev, y_dev)
+    save_model(gs)
 
 # ===========================
 # Algoritmo Random Forest
@@ -707,7 +759,7 @@ def naive_bayes():
 # ===========================
 
 def config():
-    # Cargamos los datos
+    # Cargamos los datos con los que vamos a trabajar
     print("\n- Cargando datos...")
     global data
     data = load_data(args.data_file)
