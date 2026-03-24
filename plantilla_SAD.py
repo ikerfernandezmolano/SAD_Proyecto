@@ -26,7 +26,7 @@ from sklearn.tree import DecisionTreeClassifier
 # Random Forest
 from sklearn.ensemble import RandomForestClassifier
 # Naive Bayes
-from sklearn.naive_bayes import GaussianNB
+from sklearn.naive_bayes import MultinomialNB
 # Nltk
 import nltk
 from nltk.corpus import stopwords
@@ -682,15 +682,17 @@ def naive_bayes():
 
     params = args.parameters if hasattr(args, 'parameters') else {}
     param_grid = {
-        'var_smoothing': params.get('var_smoothing', [1e-9, 1e-8, 1e-7])
+        'alpha': [0.1, 0.5, 1.0, 2.0]
     }
 
     scoring_metric = f"f1_{params.get('f_score', 'macro')}" if params.get('f_score', 'macro') in ['macro', 'micro', 'weighted'] else 'f1_macro'
 
     start_time = time.time()
-    nb = GaussianNB()
+
+    nb = MultinomialNB()
     gs = GridSearchCV(nb, param_grid, cv=5, n_jobs=-1, scoring=scoring_metric)
     gs.fit(x_train, y_train)
+
     end_time = time.time()
 
     execution_time = end_time - start_time
