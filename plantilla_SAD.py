@@ -473,9 +473,9 @@ def calculate_fscore(y_true, y_pred):
 def calculate_classification_report(y_true, y_pred):
     return classification_report(y_true, y_pred, zero_division=0)
 
-# ===========================
+# =========================================
 # Funciones comunes para los modelos
-# ===========================
+# =========================================
 
 def divide_data():
     global data
@@ -488,7 +488,7 @@ def divide_data():
         X = data.drop(columns=[args.prediction]).copy()
 
         # Transformamos la columna objetivo a numérica si no lo es.
-        if not np.issubdtype(y.dtype, np.number):
+        if not pd.api.types.is_numeric_dtype(y):
             le = LabelEncoder()
             y = le.fit_transform(y.astype(str))
 
@@ -649,46 +649,43 @@ def kNN():
 # ===========================
 
 def decision_tree():
-    X_train, X_dev, y_train, y_dev = divide_data()
+    """
+    Función que entrena un modelo de Árbol de Decisión utilizando GridSearchCV.
+    """
+    x_train, x_dev, y_train, y_dev = divide_data()
 
-    max_depth = args.parameters.get('max_depth')
-    if not isinstance(max_depth, list) or not all(isinstance(i, int) and i > 0 for i in max_depth):
-        print("Error en el valor max_depth del algoritmo Árbol de Decisión.")
-        exampleMessage("decision_tree")
-        sys.exit(1)
-
-    min_samples_leaf = args.parameters.get('min_samples_leaf')
-    if not isinstance(min_samples_leaf, list) or not all(isinstance(i, int) and i > 0 for i in min_samples_leaf):
-        print("Error en el valor min_samples_leaf del algoritmo Árbol de Decisión.")
-        exampleMessage("decision_tree")
-        sys.exit(1)
-
-    criterion = args.parameters.get('criterion')
-    if not isinstance(criterion, list) or not all(isinstance(i, str) and i in ['gini', 'entropy'] for i in criterion):
-        print("Error en el valor criterion del algoritmo Árbol de Decisión.")
-        exampleMessage("decision_tree")
-        sys.exit(1)
-
-    parametros_dt = {
-        'max_depth': max_depth,
-        'min_samples_leaf': min_samples_leaf,
-        'criterion': criterion
+    params = args.parameters if hasattr(args, 'parameters') else {}
+    
+    # Extraemos los parámetros del JSON o ponemos valores por defecto si no existen
+    param_grid = {
+        'max_depth': params.get('max_depth', [None, 5, 10, 20]),
+        'min_samples_split': params.get('min_samples_split', [2, 5, 10]),
+        'min_samples_leaf': params.get('min_samples_leaf', [1, 2, 5]),
+        'criterion': params.get('criterion', ['gini', 'entropy'])
     }
 
-    dt = DecisionTreeClassifier(random_state=42)
-    clf = GridSearchCV(dt, parametros_dt, cv=5, n_jobs=-1, scoring='f1_macro')
+    # Configuramos la métrica de evaluación (F1-score por defecto macro)
+    fscore_param = params.get('f_score', 'macro').lower()
+    scoring_metric = f"f1_{fscore_param}" if fscore_param in ['macro', 'micro', 'weighted'] else 'f1_macro'
+
     print("Entrenando Árbol de Decisión y buscando los mejores parámetros...")
-    clf.fit(X_train, y_train)
+    start_time = time.time()
 
-    resultados_todos = pd.DataFrame(clf.cv_results_)
-    columnas_utiles = ['params', 'mean_test_score', 'std_test_score', 'rank_test_score']
-    resultados_limpios = resultados_todos[columnas_utiles].sort_values(by='rank_test_score')
-    resultados_limpios.to_csv('resultadosDeTodosModelos.csv', index=False)
-    print("-> Archivo 'resultadosDeTodosModelos.csv' generado con éxito.")
+    # Inicializamos el modelo y la búsqueda en rejilla (GridSearch)
+    dt = DecisionTreeClassifier(random_state=42)
+    gs = GridSearchCV(dt, param_grid, cv=5, n_jobs=-1, scoring=scoring_metric)
+    
+    # Entrenamos el modelo
+    gs.fit(x_train, y_train)
 
-    y_pred = clf.best_estimator_.predict(X_dev)
-    return y_dev, y_pred
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print("Tiempo de ejecución:" + Fore.MAGENTA + f" {execution_time:.2f} " + Fore.RESET + "segundos")
 
+    # Guardamos y mostramos los resultados usando las funciones comunes
+    mostrar_resultados(gs, x_dev, y_dev)
+    save_model(gs)
+    
 # ===========================
 # Algoritmo Random Forest
 # ===========================
@@ -769,6 +766,7 @@ def config():
     print("\n- Descargando diccionarios...")
     nltk.download('stopwords')
     nltk.download('punkt')
+    nltk.download('punkt_tab')
     nltk.download('wordnet')
 
     # Preprocesamos los datos

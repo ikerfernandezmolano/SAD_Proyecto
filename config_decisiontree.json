@@ -1,0 +1,17 @@
+{
+    "data_file": "orders.csv",
+    "algorithm": "decision_tree",
+    "prediction": "tshirt_category",
+    "parameters": {
+        "max_depth": [3, 5, 10, 20],
+        "min_samples_leaf": [1, 2, 5],
+        "criterion": ["gini", "entropy"],
+        "f_score": "macro"
+    },
+    "preprocessing": {
+        "scaler": "standard",
+        "sampling": "oversampling",
+        "unique_category_threshold": 20,
+        "text_process": "tf-idf"
+    }
+}
