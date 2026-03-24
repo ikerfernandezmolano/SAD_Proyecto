@@ -8,8 +8,8 @@
         "text_process": "tf-idf"
     },
     "parameters": {
-        "n_estimators": [100, 200],
-        "max_depth": [15, 25, null],
+        "n_estimators": [100,200],
+        "max_depth": [20,30],
         "criterion": ["gini"],
         "f_score": "macro"
     }

@@ -19,6 +19,7 @@ from sklearn.model_selection import GridSearchCV
 # Preprocesado
 from sklearn.preprocessing import MaxAbsScaler, MinMaxScaler, Normalizer, StandardScaler, LabelEncoder
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+from pandas.api.types import is_numeric_dtype
 # kNN
 from sklearn.neighbors import KNeighborsClassifier
 # Decision Tree
@@ -437,7 +438,7 @@ def divide_data():
         y = data[args.prediction].copy()
         X = data.drop(columns=[args.prediction]).copy()
 
-        if not np.issubdtype(y.dtype, np.number):
+        if not is_numeric_dtype(y):
             le = LabelEncoder()
             y = le.fit_transform(y.astype(str))
 
@@ -714,6 +715,7 @@ def config():
     print("\n- Descargando diccionarios...")
     nltk.download('stopwords')
     nltk.download('punkt')
+    nltk.download('punkt_tab')
     nltk.download('wordnet')
 
     # Preprocesamos los datos
