@@ -1,0 +1,16 @@
+{
+    "data_file": "orders.csv",
+    "algorithm": "random_forest",
+    "prediction": "tshirt_category",
+    "preprocessing": {
+        "sampling": "oversampling",
+        "scaler": "standard",
+        "text_process": "tf-idf"
+    },
+    "parameters": {
+        "n_estimators": [100, 200],
+        "max_depth": [15, 25, null],
+        "criterion": ["gini"],
+        "f_score": "macro"
+    }
+}

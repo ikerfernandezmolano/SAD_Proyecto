@@ -1,0 +1,13 @@
+{
+    "data_file": "orders.csv",
+    "algorithm": "naive_bayes",
+    "prediction": "tshirt_category",
+    "parameters": {
+        "f_score": "macro"
+    },
+    "preprocessing": {
+        "scaler": "minmax",
+        "sampling": "oversampling",
+        "text_process": "tf-idf"
+    }
+}
