@@ -514,7 +514,7 @@ def divide_data():
         print(Fore.RED + "Error al dividir datos: " + str(e) + Fore.RESET)
         sys.exit(1)
 
-def save_model(gs):
+def save_model(gs, X_train):
     """
     Guarda el modelo y los resultados de la búsqueda de hiperparámetros en archivos.
 
@@ -532,7 +532,8 @@ def save_model(gs):
         package = {
             "model" : gs,
             "scaler" : scaler,
-            "vectorizer" : vectorizer
+            "vectorizer" : vectorizer,
+            "columns": X_train.columns.tolist()
         }
         algorithm = args.algorithm
         with open(f'output/Modelo{algorithm}.pkl', 'wb') as file:
@@ -674,8 +675,7 @@ def kNN():
     # Guardamos y mostramos los resultados usando las funciones comunes
     mostrar_resultados(gs, X_dev, y_dev)
 
-    model_columns = list(X_train.columns)
-    save_model(gs, model_columns)
+    save_model(gs, X_train)
 
 # ===========================
 # Algoritmo Arból de Decisión
@@ -727,7 +727,7 @@ def decision_tree():
 
     # Guardamos y mostramos los resultados usando las funciones comunes
     mostrar_resultados(gs, x_dev, y_dev)
-    save_model(gs)
+    save_model(gs, x_train)
 
 # ===========================
 # Algoritmo Random Forest
@@ -771,7 +771,7 @@ def random_forest():
     print("Tiempo de ejecución:" + Fore.MAGENTA + f" {execution_time} " + Fore.RESET + "segundos")
 
     mostrar_resultados(gs, x_dev, y_dev)
-    save_model(gs)
+    save_model(gs, x_train)
 
 # ===========================
 # Algoritmo Naive Bayes
@@ -809,7 +809,7 @@ def naive_bayes():
     print("Tiempo de ejecución:" + Fore.MAGENTA + f" {execution_time} " + Fore.RESET + "segundos")
 
     mostrar_resultados(gs, x_dev, y_dev)
-    save_model(gs)
+    save_model(gs, x_train)
 
 # ===========================
 # Configuración inicial
