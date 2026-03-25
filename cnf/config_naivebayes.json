@@ -8,6 +8,6 @@
     "preprocessing": {
         "scaler": "minmax",
         "sampling": "oversampling",
-        "text_process": "tf-idf"
+        "text_process": "bow"
     }
 }
