@@ -190,26 +190,35 @@ def reescaler(numerical_feature):
         print(e)
         sys.exit(1)
 
+
 def cat2num(categorical_feature):
-    """
-    Convierte las características categóricas en características numéricas utilizando la codificación de etiquetas.
-
-    Parámetros:
-    categorical_feature (DataFrame): El DataFrame que contiene las características categóricas a convertir.
-
-    """
     global data
     try:
-        cols = [col for col in categorical_feature.columns if col in data.columns and col != args.prediction]
+        cols = [col for col in categorical_feature.columns if col in data.columns]
         if not cols:
-            print(Fore.YELLOW + "No se han encontrado columnas categóricas para convertir" + Fore.RESET)
+            print(Fore.YELLOW + "No se han encontrado columnas categóricas" + Fore.RESET)
             return
 
-        data = pd.get_dummies(data, columns=cols, dummy_na=False, drop_first=False)
-        print(Fore.GREEN + "Variables categóricas convertidas a numéricas con éxito" + Fore.RESET)
+        # Recuperamos el encoder que guardamos en el entrenamiento
+        encoder = package['categorical_encoder']
+
+        # Transformamos los datos actuales
+        # Esto devuelve una matriz con las MISMAS columnas que el entrenamiento
+        encoded_data = encoder.transform(data[cols])
+
+        # Creamos un DataFrame con los nombres de columnas correctos
+        encoded_df = pd.DataFrame(
+            encoded_data,
+            columns=encoder.get_feature_names_out(cols),
+            index=data.index
+        )
+
+        # Sustituimos las columnas originales por las codificadas
+        data = pd.concat([data.drop(columns=cols), encoded_df], axis=1)
+
+        print(Fore.GREEN + "Variables categóricas transformadas (OHE) con éxito" + Fore.RESET)
     except Exception as e:
-        print(Fore.RED + "Error al convertir variables categóricas a numéricas" + Fore.RESET)
-        print(e)
+        print(Fore.RED + "Error en transformación categórica: " + str(e) + Fore.RESET)
         sys.exit(1)
 
 def simplify_text(text_feature):
@@ -325,8 +334,14 @@ def predict():
     # Predecimos
     prediction = package['model'].predict(data)
 
+    if 'label_encoder' in package:
+        prediction_labels = package['label_encoder'].inverse_transform(prediction)
+    else:
+        print(Fore.YELLOW + "Aviso: No se encontró label_encoder, usando números." + Fore.RESET)
+        prediction_labels = prediction
+
     # Añadimos la prediccion al dataframe data
-    dataAux = pd.concat([dataAux,pd.DataFrame(prediction, columns=[args.prediction])], axis=1)
+    dataAux = pd.concat([dataAux,pd.DataFrame(prediction_labels, columns=[f"{args.prediction}_PRED"], index=dataAux.index)], axis=1)
 
 # ===========================
 # Entrada principal

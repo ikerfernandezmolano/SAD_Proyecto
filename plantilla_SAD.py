@@ -19,6 +19,7 @@ from sklearn.metrics import f1_score, confusion_matrix, precision_score, recall_
 from sklearn.model_selection import GridSearchCV
 # Preprocesado
 from sklearn.preprocessing import MaxAbsScaler, MinMaxScaler, StandardScaler, LabelEncoder
+from sklearn.preprocessing import OneHotEncoder
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from pandas.api.types import is_numeric_dtype
 # kNN
@@ -40,8 +41,8 @@ from imblearn.over_sampling import RandomOverSampler
 from tqdm import tqdm
 
 global data
-global scaler
-global vectorizer
+global package
+package = {}
 
 # ===========================
 # Funciones de Sistema
@@ -107,30 +108,29 @@ def load_data(file):
 # ===========================
 
 def select_features():
-    """
-    Separa las características del conjunto de datos en características numéricas, de texto y categóricas.
-
-    Returns:
-        numerical_feature (DataFrame): DataFrame que contiene las características numéricas.
-        text_feature (DataFrame): DataFrame que contiene las características de texto.
-        categorical_feature (DataFrame): DataFrame que contiene las características categóricas.
-    """
     try:
-        # Numerical features
-        numerical_feature = data.select_dtypes(include=['int64', 'float64'])  # Columnas numéricas
+        # 1. Identificar numéricas (excluyendo la predicción)
+        numerical_feature = data.select_dtypes(include=['int64', 'float64'])
         if args.prediction in numerical_feature.columns:
             numerical_feature = numerical_feature.drop(columns=[args.prediction])
 
+        # 2. Identificar categóricas (excluyendo la predicción)
         unique_threshold = args.preprocessing.get("unique_category_threshold", 20)
-        # Categorical features
         categorical_feature = data.select_dtypes(include='object')
+        # EXCLUIR PREDICCIÓN AQUÍ:
+        if args.prediction in categorical_feature.columns:
+            categorical_feature = categorical_feature.drop(columns=[args.prediction])
+
         categorical_feature = categorical_feature.loc[:, categorical_feature.nunique() <= unique_threshold]
 
-        # Text features
-        text_feature = data.select_dtypes(include='object').drop(columns=categorical_feature.columns)
+        # 3. Identificar texto (excluyendo categóricas y la predicción)
+        all_objects = data.select_dtypes(include='object')
+        text_feature = all_objects.drop(columns=categorical_feature.columns)
+        # EXCLUIR PREDICCIÓN AQUÍ TAMBIÉN:
+        if args.prediction in text_feature.columns:
+            text_feature = text_feature.drop(columns=[args.prediction])
 
-        print(Fore.GREEN + "Datos separados con éxito" + Fore.RESET)
-
+        print(Fore.GREEN + "Datos separados con éxito (Predicción excluida de X)" + Fore.RESET)
         return numerical_feature, text_feature, categorical_feature
     except Exception as e:
         print(Fore.RED + "Error al separar los datos" + Fore.RESET)
@@ -201,7 +201,6 @@ def reescaler(numerical_feature):
 
         scaler_name = args.preprocessing.get("scaler", "standard").lower()
 
-        global scaler
         if scaler_name == "minmax":
             scaler = MinMaxScaler()
         elif scaler_name == "maxabs":
@@ -212,34 +211,49 @@ def reescaler(numerical_feature):
             scaler = StandardScaler()
 
         cols = [col for col in numerical_feature.columns if col in data.columns]
+
         if cols:
             data[cols] = scaler.fit_transform(data[cols])
             print(Fore.GREEN + "Datos reescalados con éxito" + Fore.RESET)
+            global package
+            package['scaler'] = scaler
+
     except Exception as e:
-        print(Fore.RED + "Error al reescalar los datos" + Fore.RESET)
-        print(e)
-        sys.exit(1)
+            print(Fore.RED + "Error al reescalar los datos" + Fore.RESET)
+            print(e)
+            sys.exit(1)
+
 
 def cat2num(categorical_feature):
-    """
-    Convierte las características categóricas en características numéricas utilizando la codificación de etiquetas.
-
-    Parámetros:
-    categorical_feature (DataFrame): El DataFrame que contiene las características categóricas a convertir.
-
-    """
-    global data
+    global data, package  # Asegúrate de que 'package' existe para guardar cosas
     try:
-        cols = [col for col in categorical_feature.columns if col in data.columns and col != args.prediction]
+        cols = [col for col in categorical_feature.columns if col in data.columns]
         if not cols:
-            print(Fore.YELLOW + "No se han encontrado columnas categóricas para convertir" + Fore.RESET)
             return
 
-        data = pd.get_dummies(data, columns=cols, dummy_na=False, drop_first=False)
-        print(Fore.GREEN + "Variables categóricas convertidas a numéricas con éxito" + Fore.RESET)
+        # Creamos el encoder en el entrenamiento
+        # handle_unknown='ignore' es VITAL para que el Test no pete con clases nuevas
+        encoder = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
+
+        # Aprendemos las categorías
+        encoder.fit(data[cols])
+
+        # Transformamos y reemplazamos en el DataFrame
+        encoded_data = encoder.transform(data[cols])
+        encoded_df = pd.DataFrame(
+            encoded_data,
+            columns=encoder.get_feature_names_out(cols),
+            index=data.index
+        )
+
+        data = pd.concat([data.drop(columns=cols), encoded_df], axis=1)
+
+        # GUARDAMOS el objeto en el package para el Test
+        package['categorical_encoder'] = encoder
+
+        print(Fore.GREEN + "OneHotEncoder entrenado y guardado" + Fore.RESET)
     except Exception as e:
-        print(Fore.RED + "Error al convertir variables categóricas a numéricas" + Fore.RESET)
-        print(e)
+        print(Fore.RED + f"Error en cat2num (Train): {e}" + Fore.RESET)
         sys.exit(1)
 
 def simplify_text(text_feature):
@@ -292,7 +306,7 @@ def process_text(text_feature):
     global data
     try:
         if text_feature.columns.size > 0:
-            global vectorizer
+            global package
             if args.preprocessing["text_process"] == "tf-idf":
                 vectorizer = TfidfVectorizer()
                 text_data = data[text_feature.columns].apply(lambda x: ' '.join(x.astype(str)), axis=1)
@@ -302,19 +316,18 @@ def process_text(text_feature):
                 data = pd.concat([data, text_features_df], axis=1)
                 data.drop(text_feature.columns, axis=1, inplace=True)
                 print(Fore.GREEN + "Texto tratado con éxito usando TF-IDF" + Fore.RESET)
+                package['vectorizer'] = vectorizer
             elif args.preprocessing["text_process"] == "bow":
                 vectorizer = CountVectorizer()
                 text_data = data[text_feature.columns].apply(lambda x: ' '.join(x.astype(str)), axis=1)
                 bow_matrix = vectorizer.fit_transform(text_data)
                 text_features_df = pd.DataFrame(bow_matrix.toarray(), columns=vectorizer.get_feature_names_out())
-
                 # Unimos las nuevas columnas numéricas
                 data = pd.concat([data, text_features_df], axis=1)
-
                 # ELIMINAMOS las columnas de texto originales para que no den error
                 data.drop(text_feature.columns, axis=1, inplace=True)
-
                 print(Fore.GREEN + "Texto tratado con éxito usando BOW" + Fore.RESET)
+                package['vectorizer'] = vectorizer
             else:
                 print(Fore.YELLOW + "No se están tratando los textos" + Fore.RESET)
         else:
@@ -501,6 +514,7 @@ def divide_data():
         if not is_numeric_dtype(y):
             le = LabelEncoder()
             y = le.fit_transform(y.astype(str))
+            package['label_encoder'] = le
 
         # Comprobar si está desbalanceado
         proportions = pd.Series(y).value_counts(normalize=True)
@@ -515,7 +529,7 @@ def divide_data():
         print(Fore.RED + "Error al dividir datos: " + str(e) + Fore.RESET)
         sys.exit(1)
 
-def save_model(gs, X_train):
+def save_model(gs):
     """
     Guarda el modelo y los resultados de la búsqueda de hiperparámetros en archivos.
 
@@ -530,12 +544,7 @@ def save_model(gs, X_train):
     - output/modelo.csv: Archivo CSV que contiene los parámetros probados y sus respectivas puntuaciones obtenidas durante la búsqueda de hiperparámetros.
     """
     try:
-        package = {
-            "model" : gs,
-            "scaler" : scaler,
-            "vectorizer" : vectorizer,
-            "columns": X_train.columns.tolist()
-        }
+        package['model'] = gs
         algorithm = args.algorithm
         with open(f'output/Modelo{algorithm}.pkl', 'wb') as file:
             pickle.dump(package, file)
@@ -676,7 +685,7 @@ def kNN():
     # Guardamos y mostramos los resultados usando las funciones comunes
     mostrar_resultados(gs, X_dev, y_dev)
 
-    save_model(gs, X_train)
+    save_model(gs)
 
 # ===========================
 # Algoritmo Arból de Decisión
@@ -728,7 +737,7 @@ def decision_tree():
 
     # Guardamos y mostramos los resultados usando las funciones comunes
     mostrar_resultados(gs, x_dev, y_dev)
-    save_model(gs, x_train)
+    save_model(gs)
 
 # ===========================
 # Algoritmo Random Forest
@@ -772,7 +781,7 @@ def random_forest():
     print("Tiempo de ejecución:" + Fore.MAGENTA + f" {execution_time} " + Fore.RESET + "segundos")
 
     mostrar_resultados(gs, x_dev, y_dev)
-    save_model(gs, x_train)
+    save_model(gs)
 
 # ===========================
 # Algoritmo Naive Bayes
@@ -810,7 +819,7 @@ def naive_bayes():
     print("Tiempo de ejecución:" + Fore.MAGENTA + f" {execution_time} " + Fore.RESET + "segundos")
 
     mostrar_resultados(gs, x_dev, y_dev)
-    save_model(gs, x_train)
+    save_model(gs)
 
 # ===========================
 # Configuración inicial
