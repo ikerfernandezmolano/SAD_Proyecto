@@ -40,6 +40,7 @@ from imblearn.over_sampling import RandomOverSampler
 from tqdm import tqdm
 
 global data
+global scaler
 
 # ===========================
 # Funciones de Sistema
@@ -199,6 +200,7 @@ def reescaler(numerical_feature):
 
         scaler_name = args.preprocessing.get("scaler", "standard").lower()
 
+        global scaler
         if scaler_name == "minmax":
             scaler = MinMaxScaler()
         elif scaler_name == "maxabs":
@@ -289,20 +291,21 @@ def process_text(text_feature):
     global data
     try:
         if text_feature.columns.size > 0:
+            global vectorizer
             if args.preprocessing["text_process"] == "tf-idf":
-                tfidf_vectorizer = TfidfVectorizer()
+                vectorizer = TfidfVectorizer()
                 text_data = data[text_feature.columns].apply(lambda x: ' '.join(x.astype(str)), axis=1)
-                tfidf_matrix = tfidf_vectorizer.fit_transform(text_data)
+                tfidf_matrix = vectorizer.fit_transform(text_data)
                 text_features_df = pd.DataFrame(tfidf_matrix.toarray(),
-                                                columns=tfidf_vectorizer.get_feature_names_out())
+                                                columns=vectorizer.get_feature_names_out())
                 data = pd.concat([data, text_features_df], axis=1)
                 data.drop(text_feature.columns, axis=1, inplace=True)
                 print(Fore.GREEN + "Texto tratado con éxito usando TF-IDF" + Fore.RESET)
             elif args.preprocessing["text_process"] == "bow":
-                bow_vectorizer = CountVectorizer()
+                vectorizer = CountVectorizer()
                 text_data = data[text_feature.columns].apply(lambda x: ' '.join(x.astype(str)), axis=1)
-                bow_matrix = bow_vectorizer.fit_transform(text_data)
-                text_features_df = pd.DataFrame(bow_matrix.toarray(), columns=bow_vectorizer.get_feature_names_out())
+                bow_matrix = vectorizer.fit_transform(text_data)
+                text_features_df = pd.DataFrame(bow_matrix.toarray(), columns=vectorizer.get_feature_names_out())
 
                 # Unimos las nuevas columnas numéricas
                 data = pd.concat([data, text_features_df], axis=1)
@@ -320,7 +323,7 @@ def process_text(text_feature):
         print(e)
         sys.exit(1)
 
-def over_under_sampling(X_train, y_train):
+def over_under_sampling(X_train, y_train, desbalanceado):
     """
     Aplica técnicas de balanceo de clases (Oversampling o Undersampling)
     sobre el conjunto de datos global para evitar sesgos en el modelo.
@@ -334,22 +337,26 @@ def over_under_sampling(X_train, y_train):
     """
     sampling_type = args.preprocessing.get("sampling", "none")
 
-    print(Fore.YELLOW + "Distribución de clases en Train:\n", pd.Series(y_train).value_counts(normalize=True))
-
     if sampling_type == "none":
         return X_train, y_train  # Siempre devolver los datos
 
     try:
-        if sampling_type == "oversampling":
-            sampler = RandomOverSampler(random_state=42)
-        elif sampling_type == "undersampling":
-            sampler = RandomUnderSampler(random_state=42)
+        answer = "y"
+        if not desbalanceado:
+            answer = input(f"Los datos están balanceados, has indicado que quieres realizar {sampling_type}. ¿Quieres continuar aún así? [y/N]?")
+
+        if answer.lower() == "y":
+            if sampling_type == "oversampling":
+                sampler = RandomOverSampler(random_state=42)
+            elif sampling_type == "undersampling":
+                sampler = RandomUnderSampler(random_state=42)
+            else:
+                return X_train, y_train
+            X_res, y_res = sampler.fit_resample(X_train, y_train)
+            print(Fore.GREEN + f"Sampling ({sampling_type}) aplicado" + Fore.RESET)
+            return X_res, y_res
         else:
             return X_train, y_train
-
-        X_res, y_res = sampler.fit_resample(X_train, y_train)
-        print(Fore.GREEN + f"Sampling ({sampling_type}) aplicado" + Fore.RESET)
-        return X_res, y_res
     except Exception as e:
         print(Fore.YELLOW + "No se pudo aplicar sampling: " + str(e) + Fore.RESET)
         return X_train, y_train
@@ -494,9 +501,14 @@ def divide_data():
             le = LabelEncoder()
             y = le.fit_transform(y.astype(str))
 
+        # Comprobar si está desbalanceado
+        proportions = pd.Series(y).value_counts(normalize=True)
+        min_prop = proportions.min()
+        desbalanceado = min_prop < 0.10
+
         # Dividimos los datos en entrenamiento y desarrollo (80% - 20%) de forma estratificada para mantener la proporción de clases.
         X_train, X_dev, y_train, y_dev = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-        X_train, y_train = over_under_sampling(X_train, y_train)
+        X_train, y_train = over_under_sampling(X_train, y_train, desbalanceado)
         return X_train, X_dev, y_train, y_dev
     except Exception as e:
         print(Fore.RED + "Error al dividir datos: " + str(e) + Fore.RESET)
@@ -517,9 +529,14 @@ def save_model(gs):
     - output/modelo.csv: Archivo CSV que contiene los parámetros probados y sus respectivas puntuaciones obtenidas durante la búsqueda de hiperparámetros.
     """
     try:
+        package = {
+            "model" : gs,
+            "scaler" : scaler,
+            "vectorizer" : vectorizer
+        }
         algorithm = args.algorithm
         with open(f'output/Modelo{algorithm}.pkl', 'wb') as file:
-            pickle.dump(gs, file)
+            pickle.dump(package, file)
             print(Fore.CYAN + "Modelo guardado con éxito" + Fore.RESET)
 
         # Extraemos los datos necesarios de cv_results_
@@ -557,7 +574,6 @@ def save_model(gs):
     except Exception as e:
         print(Fore.RED + "Error al guardar el modelo" + Fore.RESET)
         print(e)
-
 
 def mostrar_resultados(gs, x_dev, y_dev):
     """
@@ -657,7 +673,9 @@ def kNN():
 
     # Guardamos y mostramos los resultados usando las funciones comunes
     mostrar_resultados(gs, X_dev, y_dev)
-    save_model(gs)
+
+    model_columns = list(X_train.columns)
+    save_model(gs, model_columns)
 
 # ===========================
 # Algoritmo Arból de Decisión

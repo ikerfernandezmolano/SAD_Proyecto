@@ -20,6 +20,7 @@ from nltk.stem import PorterStemmer
 from nltk.tokenize import word_tokenize
 
 global data
+global dataAux
 
 # ===========================
 # Funciones de Sistema
@@ -68,8 +69,9 @@ def load_data(file):
     """
 
     try:
-        global data
+        global data, dataAux
         data = pd.read_csv(file, encoding='utf-8')
+        dataAux = pd.read_csv(file, encoding='utf-8')
         print(Fore.GREEN + "Datos cargados con éxito" + Fore.RESET)
     except Exception as e:
         print(Fore.RED + "Error al cargar los datos" + Fore.RESET)
@@ -90,6 +92,10 @@ def select_features():
         categorical_feature (DataFrame): DataFrame que contiene las características categóricas.
     """
     try:
+        global data
+        # Eliminar la columna que quieres predecir para que no entre al modelo
+        if args.prediction in data.columns:
+            data = data.drop(columns=[args.prediction])
         # Numerical features
         numerical_feature = data.select_dtypes(include=['int64', 'float64'])  # Columnas numéricas
         if args.prediction in numerical_feature.columns:
@@ -173,20 +179,11 @@ def reescaler(numerical_feature):
             print(Fore.YELLOW + "No se han encontrado columnas numéricas para reescalar" + Fore.RESET)
             return
 
-        scaler_name = args.preprocessing.get("scaler", "standard").lower()
-
-        if scaler_name == "minmax":
-            scaler = MinMaxScaler()
-        elif scaler_name == "maxabs":
-            scaler = MaxAbsScaler()
-        elif scaler_name == "zscore":
-            scaler = StandardScaler()
-        else:
-            scaler = StandardScaler()
+        scaler = package['scaler']
 
         cols = [col for col in numerical_feature.columns if col in data.columns]
         if cols:
-            data[cols] = scaler.fit_transform(data[cols])
+            data[cols] = scaler.transform(data[cols])
             print(Fore.GREEN + "Datos reescalados con éxito" + Fore.RESET)
     except Exception as e:
         print(Fore.RED + "Error al reescalar los datos" + Fore.RESET)
@@ -265,30 +262,14 @@ def process_text(text_feature):
     global data
     try:
         if text_feature.columns.size > 0:
-            if args.preprocessing["text_process"] == "tf-idf":
-                tfidf_vectorizer = TfidfVectorizer()
-                text_data = data[text_feature.columns].apply(lambda x: ' '.join(x.astype(str)), axis=1)
-                tfidf_matrix = tfidf_vectorizer.fit_transform(text_data)
-                text_features_df = pd.DataFrame(tfidf_matrix.toarray(),
-                                                columns=tfidf_vectorizer.get_feature_names_out())
-                data = pd.concat([data, text_features_df], axis=1)
-                data.drop(text_feature.columns, axis=1, inplace=True)
-                print(Fore.GREEN + "Texto tratado con éxito usando TF-IDF" + Fore.RESET)
-            elif args.preprocessing["text_process"] == "bow":
-                bow_vectorizer = CountVectorizer()
-                text_data = data[text_feature.columns].apply(lambda x: ' '.join(x.astype(str)), axis=1)
-                bow_matrix = bow_vectorizer.fit_transform(text_data)
-                text_features_df = pd.DataFrame(bow_matrix.toarray(), columns=bow_vectorizer.get_feature_names_out())
-
-                # Unimos las nuevas columnas numéricas
-                data = pd.concat([data, text_features_df], axis=1)
-
-                # ELIMINAMOS las columnas de texto originales para que no den error
-                data.drop(text_feature.columns, axis=1, inplace=True)
-
-                print(Fore.GREEN + "Texto tratado con éxito usando BOW" + Fore.RESET)
-            else:
-                print(Fore.YELLOW + "No se están tratando los textos" + Fore.RESET)
+            vectorizer = package['vectorizer']
+            text_data = data[text_feature.columns].apply(lambda x: ' '.join(x.astype(str)), axis=1)
+            matrix = vectorizer.transform(text_data)
+            text_features_df = pd.DataFrame(matrix.toarray(),
+                                            columns=vectorizer.get_feature_names_out())
+            data = pd.concat([data, text_features_df], axis=1)
+            data.drop(text_feature.columns, axis=1, inplace=True)
+            print(Fore.GREEN + "Texto tratado con éxito" + Fore.RESET)
         else:
             print(Fore.YELLOW + "No se han encontrado columnas de texto a procesar" + Fore.RESET)
     except Exception as e:
@@ -320,24 +301,15 @@ def preprocesar_datos():
 # =====================================
 
 def load_model():
-    """
-    Carga el modelo desde el archivo 'output/modelo.pkl' y lo devuelve.
-
-    Returns:
-        model: El modelo cargado desde el archivo 'output/modelo.pkl'.
-    Raises:
-        Exception: Si ocurre un error al cargar el modelo.
-    """
     try:
-        with open(f'output/{args.model}.pkl', 'rb') as file:
-            model = pickle.load(file)
-            print(Fore.GREEN + "Modelo cargado con éxito" + Fore.RESET)
-            return model
+        with open(f'output/{args.model}', 'rb') as file:
+            package = pickle.load(file)
+            print(Fore.GREEN + "Modelo y metadatos cargados" + Fore.RESET)
+            # Retornamos el diccionario completo
+            return package
     except Exception as e:
-        print(Fore.RED + "Error al cargar el modelo" + Fore.RESET)
-        print(e)
+        print(Fore.RED + f"Error al cargar: {e}" + Fore.RESET)
         sys.exit(1)
-
 
 def predict():
     """
@@ -349,12 +321,12 @@ def predict():
     Retorna:
         Ninguno
     """
-    global data
+    global data, dataAux
     # Predecimos
-    prediction = model.predict(data)
+    prediction = package['model'].predict(data)
 
     # Añadimos la prediccion al dataframe data
-    data = pd.concat([data, pd.DataFrame(prediction, columns=[args.prediction])], axis=1)
+    dataAux = pd.concat([dataAux,pd.DataFrame(prediction, columns=[args.prediction])], axis=1)
 
 # ===========================
 # Entrada principal
@@ -368,11 +340,11 @@ if __name__ == "__main__":
     # Cargamos los datos con los que vamos a trabajar
     print("\n- Cargando datos...")
     load_data(args.data_file)
-    # Preprocesamos los datos
-    preprocesar_datos()
     # Cargamos el modelo
     print("\n- Cargando modelo...")
-    model = load_model()
+    package = load_model()
+    # Preprocesamos los datos
+    preprocesar_datos()
     try:
         os.makedirs('output')
         print(Fore.GREEN + "Carpeta output creada con éxito" + Fore.RESET)
@@ -388,7 +360,7 @@ if __name__ == "__main__":
         predict()
         print(Fore.GREEN+"Predicción realizada con éxito"+Fore.RESET)
         # Guardamos el dataframe con la prediccion
-        data.to_csv('output/Prediccion.csv', index=False)
+        dataAux.to_csv('output/Prediccion.csv', index=False)
         print(Fore.GREEN+"Predicción guardada con éxito"+Fore.RESET)
         sys.exit(0)
     except Exception as e:

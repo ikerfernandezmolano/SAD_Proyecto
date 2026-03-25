@@ -1,9 +1,8 @@
 {
     "data_file": "orders.csv",
+    "model": "Modelonaive_bayes.pkl",
     "prediction": "tshirt_category",
     "preprocessing": {
-        "scaler": "zscore",
-        "unique_category_threshold": 20,
-        "text_process": "tf-idf"
+        "unique_category_threshold": 20
     }
 }
