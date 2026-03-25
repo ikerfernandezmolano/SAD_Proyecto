@@ -84,7 +84,6 @@ def parse_args():
 
     return args
 
-
 def load_data(file):
     """
     Función para cargar los datos de un fichero csv
