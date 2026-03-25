@@ -3,8 +3,8 @@
     "algorithm": "decision_tree",
     "prediction": "tshirt_category",
     "parameters": {
-        "max_depth": [3, 5, 10, 20],
-        "min_samples_leaf": [1, 2, 5],
+        "max_depth": [3, 5, 10],
+        "min_samples_leaf": [1, 2],
         "criterion": ["gini", "entropy"],
         "f_score": "macro"
     },

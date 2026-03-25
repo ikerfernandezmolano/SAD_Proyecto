@@ -14,11 +14,11 @@ import warnings
 from colorama import Fore
 from pandas.errors import Pandas4Warning
 # Sklearn
-from sklearn.model_selection import StratifiedKFold, cross_val_predict, train_test_split
+from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.metrics import f1_score, confusion_matrix, precision_score, recall_score, classification_report
 from sklearn.model_selection import GridSearchCV
 # Preprocesado
-from sklearn.preprocessing import MaxAbsScaler, MinMaxScaler, Normalizer, StandardScaler, LabelEncoder
+from sklearn.preprocessing import MaxAbsScaler, MinMaxScaler, StandardScaler, LabelEncoder
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from pandas.api.types import is_numeric_dtype
 # kNN
@@ -320,8 +320,7 @@ def process_text(text_feature):
         print(e)
         sys.exit(1)
 
-
-def over_under_sampling():
+def over_under_sampling(X_train, y_train):
     """
     Aplica técnicas de balanceo de clases (Oversampling o Undersampling)
     sobre el conjunto de datos global para evitar sesgos en el modelo.
@@ -333,36 +332,45 @@ def over_under_sampling():
     Retorna:
     None (modifica el DataFrame global 'data' directamente).
     """
-    global data
     sampling_type = args.preprocessing.get("sampling", "none")
-    if sampling_type == "none": return
+
+    print(Fore.YELLOW + "Distribución de clases en Train:\n", pd.Series(y_train).value_counts(normalize=True))
+
+    if sampling_type == "none":
+        return X_train, y_train  # Siempre devolver los datos
 
     try:
-        X = data.drop(columns=[args.prediction])
-        y = data[args.prediction]
-
         if sampling_type == "oversampling":
             sampler = RandomOverSampler(random_state=42)
         elif sampling_type == "undersampling":
             sampler = RandomUnderSampler(random_state=42)
-        else: return
+        else:
+            return X_train, y_train
 
-        X_res, y_res = sampler.fit_resample(X, y)
-        data = pd.concat([X_res, y_res], axis=1)
+        X_res, y_res = sampler.fit_resample(X_train, y_train)
         print(Fore.GREEN + f"Sampling ({sampling_type}) aplicado" + Fore.RESET)
+        return X_res, y_res
     except Exception as e:
         print(Fore.YELLOW + "No se pudo aplicar sampling: " + str(e) + Fore.RESET)
+        return X_train, y_train
 
 def preprocesar_datos():
+    # Descargamos los recursos necesarios de nltk
+    print("\n- Descargando diccionarios...")
+    nltk.download('stopwords')
+    nltk.download('punkt')
+    nltk.download('punkt_tab')
+    nltk.download('wordnet')
+
     # Silencia los avisos de depuración de Pandas
     warnings.filterwarnings("ignore", category=Pandas4Warning)
+
     numerical_feature, text_feature, categorical_feature = select_features() # dividir los datos con los que trabajamos en numéricos, categóricos y de texto
     simplify_text(text_feature)
     cat2num(categorical_feature)
     process_missing_values(numerical_feature, categorical_feature)
     reescaler(numerical_feature)
     process_text(text_feature)
-    over_under_sampling()
     return data
 
 # ===========================
@@ -487,7 +495,9 @@ def divide_data():
             y = le.fit_transform(y.astype(str))
 
         # Dividimos los datos en entrenamiento y desarrollo (80% - 20%) de forma estratificada para mantener la proporción de clases.
-        return train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+        X_train, X_dev, y_train, y_dev = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+        X_train, y_train = over_under_sampling(X_train, y_train)
+        return X_train, X_dev, y_train, y_dev
     except Exception as e:
         print(Fore.RED + "Error al dividir datos: " + str(e) + Fore.RESET)
         sys.exit(1)
@@ -632,6 +642,7 @@ def kNN():
         'f1': f'f1_{fscore_param}'
     }
 
+    print("Entrenando kNN y buscando los mejores parámetros...")
     start_time = time.time()
 
     knn = KNeighborsClassifier()
@@ -791,12 +802,6 @@ def config():
     print("\n- Cargando datos...")
     global data
     data = load_data(args.data_file)
-    # Descargamos los recursos necesarios de nltk
-    print("\n- Descargando diccionarios...")
-    nltk.download('stopwords')
-    nltk.download('punkt')
-    nltk.download('punkt_tab')
-    nltk.download('wordnet')
 
     # Preprocesamos los datos
     print("\n- Preprocesando datos...")
