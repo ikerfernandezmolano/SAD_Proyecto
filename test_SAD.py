@@ -51,6 +51,9 @@ def parse_args():
 
         for key, value in config.items():
             setattr(args, key, value)
+            
+        if not hasattr(args, 'preprocessing') or args.preprocessing is None:
+            args.preprocessing = {}
 
     except FileNotFoundError:
         print(f"Error: No se encontró el archivo {args.json}")
@@ -131,24 +134,37 @@ def process_missing_values(numerical_feature, categorical_feature):
     """
     global data
     try:
-        # Numéricas: mediana
+        # Leemos la estrategia del JSON (si no la pones, usa mediana y moda por defecto)
+        impute_num = args.preprocessing.get("impute_num", "median").lower()
+        impute_cat = args.preprocessing.get("impute_cat", "mode").lower()
+        
+        # Numéricas
         for col in numerical_feature.columns:
             if col in data.columns and data[col].isnull().any():
                 data[col] = pd.to_numeric(data[col], errors="coerce")
-                data[col] = data[col].fillna(data[col].median())
+                
+                if impute_num == "mean":
+                    data[col] = data[col].fillna(data[col].mean())
+                elif impute_num == "constant":
+                    data[col] = data[col].fillna(0) # Rellena con 0
+                else: # Por defecto: mediana
+                    data[col] = data[col].fillna(data[col].median())
 
         # Categóricas: moda
         for col in categorical_feature.columns:
             if col in data.columns and data[col].isnull().any():
-                moda = data[col].mode(dropna=True)
-                fill_value = moda.iloc[0] if not moda.empty else "missing"
-                data[col] = data[col].fillna(fill_value)
+                if impute_cat == "constant":
+                    data[col] = data[col].fillna("Desconocido")
+                else: # Por defecto: moda
+                    moda = data[col].mode(dropna=True)
+                    fill_value = moda.iloc[0] if not moda.empty else "Desconocido"
+                    data[col] = data[col].fillna(fill_value)
 
         # Resto de columnas object/texto
         object_cols = data.select_dtypes(include=["object"]).columns
         for col in object_cols:
             if data[col].isnull().any():
-                data[col] = data[col].fillna("missing")
+                data[col] = data[col].fillna("")
 
         print(Fore.GREEN + "Valores faltantes procesados con éxito" + Fore.RESET)
     except Exception as e:

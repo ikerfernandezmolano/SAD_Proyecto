@@ -157,24 +157,37 @@ def process_missing_values(numerical_feature, categorical_feature):
     """
     global data
     try:
-        # Numéricas: mediana
+        # Leemos la estrategia del JSON (si no la pones, usa mediana y moda por defecto)
+        impute_num = args.preprocessing.get("impute_num", "median").lower()
+        impute_cat = args.preprocessing.get("impute_cat", "mode").lower()
+        
+        # Numéricas
         for col in numerical_feature.columns:
             if col in data.columns and data[col].isnull().any():
                 data[col] = pd.to_numeric(data[col], errors="coerce")
-                data[col] = data[col].fillna(data[col].median())
+                
+                if impute_num == "mean":
+                    data[col] = data[col].fillna(data[col].mean())
+                elif impute_num == "constant":
+                    data[col] = data[col].fillna(0) # Rellena con 0
+                else: # Por defecto: mediana
+                    data[col] = data[col].fillna(data[col].median())
 
-        # Categóricas: moda
+        # Categóricas
         for col in categorical_feature.columns:
             if col in data.columns and data[col].isnull().any():
-                moda = data[col].mode(dropna=True)
-                fill_value = moda.iloc[0] if not moda.empty else "missing"
-                data[col] = data[col].fillna(fill_value)
+                if impute_cat == "constant":
+                    data[col] = data[col].fillna("Desconocido")
+                else: # Por defecto: moda
+                    moda = data[col].mode(dropna=True)
+                    fill_value = moda.iloc[0] if not moda.empty else "Desconocido"
+                    data[col] = data[col].fillna(fill_value)
 
         # Resto de columnas object/texto
         object_cols = data.select_dtypes(include=["object"]).columns
         for col in object_cols:
             if data[col].isnull().any():
-                data[col] = data[col].fillna("missing")
+                data[col] = data[col].fillna("")
 
         print(Fore.GREEN + "Valores faltantes procesados con éxito" + Fore.RESET)
     except Exception as e:
@@ -577,10 +590,21 @@ def mostrar_resultados(gs, x_dev, y_dev):
         print(Fore.MAGENTA + "> Informe de clasificación:\n" + Fore.RESET, calculate_classification_report(y_dev, gs.predict(x_dev)))
         print(Fore.MAGENTA + "> Matriz de confusión:\n" + Fore.RESET,calculate_confusion_matrix(y_dev, gs.predict(x_dev)))
 
-# ===========================
+# =========================================================================
 # Algoritmo kNN
-# ===========================
-
+# =========================================================================
+# ¿CÓMO PIENSA? Basado en distancia. Clasifica un dato nuevo mirando la 
+# etiqueta de sus 'k' vecinos más cercanos en el espacio.
+#
+# ¿CUÁNDO USARLO? 
+# - Datos numéricos continuos (Edad, Sueldo, Coordenadas).
+# - Datasets pequeños o medianos (el cálculo de distancias es costoso).
+# - Distribuciones de datos desconocidas (es un modelo no paramétrico).
+#
+# ¿CUÁNDO EVITARLO? 
+# - Texto libre (TF-IDF): La alta dimensionalidad estropea el cálculo de distancias.
+# - Datos muy desbalanceados (la clase mayoritaria domina, salvo que se use weights).
+# =========================================================================
 def kNN():
 
     k_cfg = args.parameters.get("k", {})
@@ -650,10 +674,21 @@ def kNN():
 
     save_model(gs)
 
-# ===========================
+# =========================================================================
 # Algoritmo Arból de Decisión
-# ===========================
-
+# =========================================================================
+# ¿CÓMO PIENSA? Crea un diagrama de flujo con reglas lógicas encadenadas 
+# para dividir los datos paso a paso.
+#
+# ¿CUÁNDO USARLO? 
+# - Cuando se necesita EXPLICABILIDAD ("Caja Blanca", 100% interpretable).
+# - Inmune a diferencias de escala (no requiere normalizar datos numéricos).
+# - Útil para detectar patrones en valores nulos explícitos (ej: "Desconocido").
+#
+# ¿CUÁNDO EVITARLO? 
+# - Alto riesgo de OVERFITTING (sobreajuste) si no se limita la profundidad 
+#   (max_depth). Tiende a memorizar el dataset en lugar de generalizar.
+# =========================================================================
 def decision_tree():
     """
     Función que entrena un modelo de Árbol de Decisión utilizando GridSearchCV.
@@ -702,9 +737,21 @@ def decision_tree():
     mostrar_resultados(gs, x_dev, y_dev)
     save_model(gs)
 
-# ===========================
+# =========================================================================
 # Algoritmo Random Forest
-# ===========================
+# =========================================================================
+# ¿CÓMO PIENSA? Entrena múltiples Árboles de Decisión independientes 
+# (con subconjuntos de datos) y promedia/vota la predicción final.
+#
+# ¿CUÁNDO USARLO? 
+# - Búsqueda de la máxima precisión y métricas altas (F1-Score).
+# - Datasets complejos y desbalanceados.
+# - Soluciona el problema de sobreajuste (overfitting) de los árboles simples.
+#
+# ¿CUÁNDO EVITARLO? 
+# - Cuando es obligatorio explicar el motivo de la predicción ("Caja Negra").
+# - Recursos limitados (consume mucha memoria RAM y CPU al entrenar).
+# =========================================================================
 
 def random_forest():
     """
@@ -746,9 +793,21 @@ def random_forest():
     mostrar_resultados(gs, x_dev, y_dev)
     save_model(gs)
 
-# ===========================
+# =========================================================================
 # Algoritmo Naive Bayes
-# ===========================
+# =========================================================================
+# ¿CÓMO PIENSA? Basado en probabilidad (Teorema de Bayes). Es "ingenuo" 
+# porque asume que todas las variables predictoras son independientes.
+#
+# ¿CUÁNDO USARLO? 
+# - El estándar para Procesamiento de Lenguaje Natural (NLP).
+# - Clasificación de texto libre (TF-IDF, Bag of Words, análisis de sentimientos).
+# - Entrenamiento extremadamente rápido y muy ligero para la memoria.
+#
+# ¿CUÁNDO EVITARLO? 
+# - Falla si las variables numéricas están fuertemente correlacionadas 
+#   entre sí (porque rompe la regla matemática de independencia).
+# =========================================================================
 
 def naive_bayes():
     """

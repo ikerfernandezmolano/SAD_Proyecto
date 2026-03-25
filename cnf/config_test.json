@@ -1,5 +1,9 @@
 {
     "data_file": "SantanderTraHalfHalf.csv",
     "model": "ModelokNN.pkl",
-    "prediction": "TARGET"
+    "prediction": "TARGET",
+    "preprocessing": {
+        "impute_num": "mean",
+        "impute_cat": "constant"
+    }
 }

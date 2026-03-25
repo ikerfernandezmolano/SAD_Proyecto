@@ -7,7 +7,9 @@
         "sampling": "oversampling",
         "scaler": "zscore",
         "unique_category_threshold": 20,
-        "text_process": "tf-idf"
+        "text_process": "tf-idf",
+        "impute_num": "mean",     
+        "impute_cat": "mode"      
     },
     "kNN": {
         "k": {
