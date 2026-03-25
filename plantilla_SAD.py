@@ -620,7 +620,7 @@ def kNN():
         raise ValueError("No es posible aplicar validación cruzada estratificada: alguna clase tiene menos de 2 muestras.")
 
     param_grid = {
-        'n_neighbors': range(k_min,k_max,k_step),
+        'n_neighbors': range(k_min,k_max+1,k_step),
         'p': p_values,
         'weights': weights
     }
