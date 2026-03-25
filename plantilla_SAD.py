@@ -41,6 +41,7 @@ from tqdm import tqdm
 
 global data
 global scaler
+global vectorizer
 
 # ===========================
 # Funciones de Sistema
