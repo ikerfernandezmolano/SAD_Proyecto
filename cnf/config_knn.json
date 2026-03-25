@@ -14,6 +14,8 @@
     },
     "preprocessing": {
           "scaler": "minmax",
-          "text_process": "bow"
+          "text_process": "tf-idf",
+          "unique_category_threshold": 20,
+          "sampling": "oversampling"
     }
 }

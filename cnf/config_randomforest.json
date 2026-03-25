@@ -2,15 +2,16 @@
     "data_file": "orders.csv",
     "algorithm": "random_forest",
     "prediction": "tshirt_category",
-    "preprocessing": {
-        "sampling": "oversampling",
-        "scaler": "standard",
-        "text_process": "tf-idf"
-    },
     "parameters": {
         "n_estimators": [100,200],
         "max_depth": [20,30],
-        "criterion": ["gini"],
+        "criterion": ["entropy"],
         "f_score": "macro"
+    },
+    "preprocessing": {
+        "sampling": "oversampling",
+        "scaler": "zscore",
+        "unique_category_threshold": 20,
+        "text_process": "tf-idf"
     }
 }

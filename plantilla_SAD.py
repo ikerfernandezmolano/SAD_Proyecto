@@ -10,8 +10,9 @@ import json
 import csv
 import os
 import time
-from itertools import product
+import warnings
 from colorama import Fore
+from pandas.errors import Pandas4Warning
 # Sklearn
 from sklearn.model_selection import StratifiedKFold, cross_val_predict, train_test_split
 from sklearn.metrics import f1_score, confusion_matrix, precision_score, recall_score, classification_report
@@ -99,21 +100,6 @@ def load_data(file):
         print(Fore.RED + "Error al cargar los datos" + Fore.RESET)
         print(e)
         sys.exit(1)
-
-# ===========================
-# Funciones CSV
-# ===========================
-
-def createCSV():
-    fscore_name = args.parameters.get('f_score', 'macro')
-    with open("Results.csv", "w", newline="", encoding="utf-8") as file:
-        writer = csv.writer(file)
-        writer.writerow(["NombreMod", "Precisión", "Recall", f"F_score({fscore_name})"])
-
-def add_data(data):
-    with open("Results.csv", "a", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerow(data)
 
 # ===========================
 # Preprocesado
@@ -216,10 +202,10 @@ def reescaler(numerical_feature):
 
         if scaler_name == "minmax":
             scaler = MinMaxScaler()
-        elif scaler_name == "normalizer":
-            scaler = Normalizer()
         elif scaler_name == "maxabs":
             scaler = MaxAbsScaler()
+        elif scaler_name == "zscore":
+            scaler = StandardScaler()
         else:
             scaler = StandardScaler()
 
@@ -318,7 +304,13 @@ def process_text(text_feature):
                 text_data = data[text_feature.columns].apply(lambda x: ' '.join(x.astype(str)), axis=1)
                 bow_matrix = bow_vectorizer.fit_transform(text_data)
                 text_features_df = pd.DataFrame(bow_matrix.toarray(), columns=bow_vectorizer.get_feature_names_out())
+
+                # Unimos las nuevas columnas numéricas
                 data = pd.concat([data, text_features_df], axis=1)
+
+                # ELIMINAMOS las columnas de texto originales para que no den error
+                data.drop(text_feature.columns, axis=1, inplace=True)
+
                 print(Fore.GREEN + "Texto tratado con éxito usando BOW" + Fore.RESET)
             else:
                 print(Fore.YELLOW + "No se están tratando los textos" + Fore.RESET)
@@ -363,6 +355,8 @@ def over_under_sampling():
         print(Fore.YELLOW + "No se pudo aplicar sampling: " + str(e) + Fore.RESET)
 
 def preprocesar_datos():
+    # Silencia los avisos de depuración de Pandas
+    warnings.filterwarnings("ignore", category=Pandas4Warning)
     numerical_feature, text_feature, categorical_feature = select_features() # dividir los datos con los que trabajamos en numéricos, categóricos y de texto
     simplify_text(text_feature)
     cat2num(categorical_feature)
@@ -514,14 +508,43 @@ def save_model(gs):
     - output/modelo.csv: Archivo CSV que contiene los parámetros probados y sus respectivas puntuaciones obtenidas durante la búsqueda de hiperparámetros.
     """
     try:
-        with open('output/modelo.pkl', 'wb') as file:
+        algorithm = args.algorithm
+        with open(f'output/Modelo{algorithm}.pkl', 'wb') as file:
             pickle.dump(gs, file)
             print(Fore.CYAN + "Modelo guardado con éxito" + Fore.RESET)
-        with open('output/modelo.csv', 'w') as file:
+
+        # Extraemos los datos necesarios de cv_results_
+        results = gs.cv_results_
+        params_list = results['params']
+        mean_precision = results['mean_test_precision']
+        mean_recall = results['mean_test_recall']
+        mean_f1 = results['mean_test_f1']
+
+        with open(f'output/Results_{algorithm}.csv', 'w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(['Params', 'Score'])
-            for params, score in zip(gs.cv_results_['params'], gs.cv_results_['mean_test_score']):
-                writer.writerow([params, score])
+            fscore = args.parameters.get("f_score", "macro")
+            writer.writerow(['NombreMod', 'Precisión', 'Recall', f'F_score({fscore})'])
+
+            # Iteramos usando el índice para acceder a todas las listas a la vez
+            for i in range(len(params_list)):
+                params = params_list[i]
+
+                if algorithm.lower() == 'knn':
+                    nombreMod = f"{algorithm}_k{params['n_neighbors']}_p{params['p']}_w{params['weights']}"
+                elif algorithm.lower() == 'decision_tree':
+                    nombreMod = f"{algorithm}_depth{params.get('max_depth')}_split{params.get('min_samples_split')}_leaf{params.get('min_samples_leaf')}_criterion{params.get('criterion')}"
+                elif algorithm.lower() == 'random_forest':
+                    nombreMod = f"{algorithm}_nest{params.get('n_estimators')}_depth{params.get('max_depth')}_split{params.get('min_samples_split')}_leaf{params.get('min_samples_leaf')}_criterion{params.get('criterion')}"
+                elif algorithm.lower() == 'naive_bayes':
+                    nombreMod = f"{algorithm}_alpha{params.get('alpha')}"
+
+                # Escribimos los valores correspondientes a esa combinación de parámetros
+                writer.writerow([
+                    nombreMod,
+                    f"{mean_precision[i]:.4f}",
+                    f"{mean_recall[i]:.4f}",
+                    f"{mean_f1[i]:.4f}"
+                ])
     except Exception as e:
         print(Fore.RED + "Error al guardar el modelo" + Fore.RESET)
         print(e)
@@ -596,54 +619,35 @@ def kNN():
     else:
         raise ValueError("No es posible aplicar validación cruzada estratificada: alguna clase tiene menos de 2 muestras.")
 
-    createCSV()
-    resultados = []
-    mejor_fscore = -1
-    mejor_params = None
+    param_grid = {
+        'n_neighbors': range(k_min,k_max,k_step),
+        'p': p_values,
+        'weights': weights
+    }
+
+    # Configuramos las métricas de evaluación
+    fscore_param = args.parameters.get('f_score', 'macro').lower()
+    scoring_metrics = {
+        'precision': f'precision_{fscore_param}',
+        'recall': f'recall_{fscore_param}',
+        'f1': f'f1_{fscore_param}'
+    }
 
     start_time = time.time()
-    for k, weight, p in product(range(k_min, k_max + 1, k_step), weights, p_values):
-        modelo = KNeighborsClassifier(n_neighbors=k, weights=weight, p=p)
 
-        y_pred = cross_val_predict(modelo, X_train, y_train, cv=cv, n_jobs=-1)
+    knn = KNeighborsClassifier()
+    gs = GridSearchCV(knn, param_grid, cv=cv, n_jobs=-1, scoring=scoring_metrics, refit='f1')
 
-        precision, recall, fscore = calcular_metricas(y_train, y_pred)
-        nombre_modelo = f"KNN_k{k}_p{p}_w{weight}"
-
-        fila = [nombre_modelo, precision, recall, fscore]
-        resultados.append(fila)
-        add_data(fila)
-
-        if fscore > mejor_fscore:
-            mejor_fscore = fscore
-            mejor_params = {'n_neighbors': k, 'weights': weight, 'p': p}
-
-    if mejor_params:
-        mejor_modelo = KNeighborsClassifier(**mejor_params)
-
-        # Simulamos un objeto 'gs' mínimo para que tus funciones mostrar_resultados y save_model no fallen
-        class DummyGS:
-            def __init__(self, estimator, params, X, y):
-                self.best_estimator_ = estimator.fit(X, y)
-                self.best_params_ = params
-                self.best_score_ = mejor_fscore
-                self.cv_results_ = {'params': [params], 'mean_test_score': [mejor_fscore]}
-
-            def predict(self, X): return self.best_estimator_.predict(X)
-
-        gs_simulado = DummyGS(mejor_modelo, mejor_params, X_train, y_train)
-
-        # Usamos tus funciones predefinidas
-        mostrar_resultados(gs_simulado, X_dev, y_dev)
-        save_model(gs_simulado)
-
-        print(Fore.GREEN + f"\nResultados guardados en Results.csv" + Fore.RESET)
-        print(Fore.CYAN + f"Mejor configuración: {mejor_params}" + Fore.RESET)
+    # Entrenamos el modelo
+    gs.fit(X_train, y_train)
 
     end_time = time.time()
-    print(f"Tiempo de ejecución: {Fore.MAGENTA}{end_time - start_time:.2f}{Fore.RESET} segundos")
+    execution_time = end_time - start_time
+    print(f"Tiempo de ejecución: {Fore.MAGENTA}{execution_time:.2f}{Fore.RESET} segundos")
 
-    return resultados
+    # Guardamos y mostramos los resultados usando las funciones comunes
+    mostrar_resultados(gs, X_dev, y_dev)
+    save_model(gs)
 
 # ===========================
 # Algoritmo Arból de Decisión
@@ -653,6 +657,12 @@ def decision_tree():
     """
     Función que entrena un modelo de Árbol de Decisión utilizando GridSearchCV.
     """
+
+    from sklearn.exceptions import UndefinedMetricWarning
+
+    # Esto ignorará específicamente los avisos de precisión/f-score indefinidos
+    warnings.filterwarnings("ignore", category=UndefinedMetricWarning)
+
     x_train, x_dev, y_train, y_dev = divide_data()
 
     params = args.parameters if hasattr(args, 'parameters') else {}
@@ -665,16 +675,20 @@ def decision_tree():
         'criterion': params.get('criterion', ['gini', 'entropy'])
     }
 
-    # Configuramos la métrica de evaluación (F1-score por defecto macro)
-    fscore_param = params.get('f_score', 'macro').lower()
-    scoring_metric = f"f1_{fscore_param}" if fscore_param in ['macro', 'micro', 'weighted'] else 'f1_macro'
+    # Configuramos las métricas de evaluación
+    fscore_param = args.parameters.get('f_score', 'macro').lower()
+    scoring_metrics = {
+        'precision': f'precision_{fscore_param}',
+        'recall': f'recall_{fscore_param}',
+        'f1': f'f1_{fscore_param}'
+    }
 
     print("Entrenando Árbol de Decisión y buscando los mejores parámetros...")
     start_time = time.time()
 
     # Inicializamos el modelo y la búsqueda en rejilla (GridSearch)
     dt = DecisionTreeClassifier(random_state=42)
-    gs = GridSearchCV(dt, param_grid, cv=5, n_jobs=-1, scoring=scoring_metric)
+    gs = GridSearchCV(dt, param_grid, cv=5, n_jobs=-1, scoring=scoring_metrics, refit='f1')
 
     # Entrenamos el modelo
     gs.fit(x_train, y_train)
@@ -706,11 +720,19 @@ def random_forest():
         'criterion': params.get('criterion', ['gini', 'entropy'])
     }
 
-    scoring_metric = f"f1_{params.get('f_score', 'macro')}" if params.get('f_score', 'macro') in ['macro', 'micro', 'weighted'] else 'f1_macro'
+    # Configuramos las métricas de evaluación
+    fscore_param = args.parameters.get('f_score', 'macro').lower()
+    scoring_metrics = {
+        'precision': f'precision_{fscore_param}',
+        'recall': f'recall_{fscore_param}',
+        'f1': f'f1_{fscore_param}'
+    }
 
+    print("Entrenando Random Tree y buscando los mejores parámetros...")
     start_time = time.time()
+
     rf = RandomForestClassifier(random_state=42, n_jobs=-1)
-    gs = GridSearchCV(rf, param_grid, cv=5, n_jobs=-1, scoring=scoring_metric)
+    gs = GridSearchCV(rf, param_grid, cv=5, n_jobs=-1, scoring=scoring_metrics, refit='f1')
 
     with tqdm(total=1, desc='Procesando random forest', unit='modelo', leave=True) as pbar:
         gs.fit(x_train, y_train)
@@ -735,15 +757,22 @@ def naive_bayes():
 
     params = args.parameters if hasattr(args, 'parameters') else {}
     param_grid = {
-        'alpha': [0.1, 0.5, 1.0, 2.0]
+        'alpha': params.get('alpha', [1.0]),
     }
 
-    scoring_metric = f"f1_{params.get('f_score', 'macro')}" if params.get('f_score', 'macro') in ['macro', 'micro', 'weighted'] else 'f1_macro'
+    # Configuramos las métricas de evaluación
+    fscore_param = args.parameters.get('f_score', 'macro').lower()
+    scoring_metrics = {
+        'precision': f'precision_{fscore_param}',
+        'recall': f'recall_{fscore_param}',
+        'f1': f'f1_{fscore_param}'
+    }
 
+    print("Entrenando Naive Bayes y buscando los mejores parámetros...")
     start_time = time.time()
 
     nb = MultinomialNB()
-    gs = GridSearchCV(nb, param_grid, cv=5, n_jobs=-1, scoring=scoring_metric)
+    gs = GridSearchCV(nb, param_grid, cv=5, n_jobs=-1, scoring=scoring_metrics, refit='f1')
     gs.fit(x_train, y_train)
 
     end_time = time.time()

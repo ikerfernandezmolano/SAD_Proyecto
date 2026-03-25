@@ -3,11 +3,13 @@
     "algorithm": "naive_bayes",
     "prediction": "tshirt_category",
     "parameters": {
-        "f_score": "macro"
+        "f_score": "weighted",
+        "alpha": [1e-7,1.0]
     },
     "preprocessing": {
         "scaler": "minmax",
         "sampling": "oversampling",
+        "unique_category_threshold": 20,
         "text_process": "bow"
     }
 }

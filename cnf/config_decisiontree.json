@@ -9,7 +9,7 @@
         "f_score": "macro"
     },
     "preprocessing": {
-        "scaler": "standard",
+        "scaler": "zscore",
         "sampling": "oversampling",
         "unique_category_threshold": 20,
         "text_process": "tf-idf"
