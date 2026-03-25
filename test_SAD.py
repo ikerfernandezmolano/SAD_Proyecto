@@ -10,9 +10,6 @@ import os
 import warnings
 from colorama import Fore
 from pandas.errors import Pandas4Warning
-# Preprocesado
-from sklearn.preprocessing import MaxAbsScaler, MinMaxScaler, StandardScaler
-from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 # Nltk
 import nltk
 from nltk.corpus import stopwords
@@ -117,7 +114,6 @@ def select_features():
         print(e)
         sys.exit(1)
 
-
 def process_missing_values(numerical_feature, categorical_feature):
     """
     Procesa los valores faltantes en los datos según la estrategia especificada en los argumentos.
@@ -132,39 +128,59 @@ def process_missing_values(numerical_feature, categorical_feature):
     Raises:
         None
     """
-    global data
+    global data, dataAux
     try:
         # Leemos la estrategia del JSON (si no la pones, usa mediana y moda por defecto)
-        impute_num = args.preprocessing.get("impute_num", "median").lower()
-        impute_cat = args.preprocessing.get("impute_cat", "mode").lower()
+        impute_num = package['impute_num']
+        impute_cat = package['impute_cat']
         
         # Numéricas
         for col in numerical_feature.columns:
             if col in data.columns and data[col].isnull().any():
                 data[col] = pd.to_numeric(data[col], errors="coerce")
-                
-                if impute_num == "mean":
-                    data[col] = data[col].fillna(data[col].mean())
-                elif impute_num == "constant":
-                    data[col] = data[col].fillna(0) # Rellena con 0
-                else: # Por defecto: mediana
-                    data[col] = data[col].fillna(data[col].median())
+                dataAux[col] = pd.to_numeric(dataAux[col], errors="coerce")
 
-        # Categóricas: moda
-        for col in categorical_feature.columns:
-            if col in data.columns and data[col].isnull().any():
-                if impute_cat == "constant":
-                    data[col] = data[col].fillna("Desconocido")
-                else: # Por defecto: moda
-                    moda = data[col].mode(dropna=True)
-                    fill_value = moda.iloc[0] if not moda.empty else "Desconocido"
-                    data[col] = data[col].fillna(fill_value)
+        if impute_num == "delete":
+            data = data.dropna(subset=numerical_feature.columns)
+            dataAux = dataAux.dropna(subset=numerical_feature.columns)
+        else:
+            for col in numerical_feature.columns:
+                if col in data.columns and data[col].isnull().any():
+                    if impute_num == "mean":
+                        data[col] = data[col].fillna(data[col].mean())
+                        dataAux[col] = dataAux[col].fillna(data[col].mean())
+                    elif impute_num == "mode":
+                        data[col] = data[col].fillna(data[col].mode()[0])
+                        dataAux[col] = dataAux[col].fillna(data[col].mode()[0])
+                    elif impute_num == "constant":
+                        data[col] = data[col].fillna(package['impute_num_const'])
+                        dataAux[col] = dataAux[col].fillna(package['impute_num_const'])
+                    else:  # Por defecto: mediana
+                        data[col] = data[col].fillna(data[col].median())
+                        dataAux[col] = dataAux[col].fillna(data[col].median())
+
+        if impute_cat == "delete":
+            data = data.dropna(subset=categorical_feature.columns)
+            dataAux = dataAux.dropna(subset=categorical_feature.columns)
+        else:
+            for col in categorical_feature.columns:
+                if col in data.columns and data[col].isnull().any():
+                    if impute_cat == "constant":
+                        data[col] = data[col].fillna(package['impute_cat_const'])
+                        dataAux[col] = dataAux[col].fillna(package['impute_cat_const'])
+                    else:  # Por defecto: moda
+                        moda = data[col].mode(dropna=True)
+                        fill_value = moda.iloc[0] if not moda.empty else "Desconocido"
+                        data[col] = data[col].fillna(fill_value)
+                        dataAux[col] = dataAux[col].fillna(fill_value)
 
         # Resto de columnas object/texto
-        object_cols = data.select_dtypes(include=["object"]).columns
+        object_cols = data.select_dtypes(include=["object"]).columns.difference(categorical_feature.columns)
+
         for col in object_cols:
             if data[col].isnull().any():
                 data[col] = data[col].fillna("")
+                dataAux[col] = dataAux[col].fillna("")
 
         print(Fore.GREEN + "Valores faltantes procesados con éxito" + Fore.RESET)
     except Exception as e:

@@ -2,14 +2,14 @@
     "data_file": "SantanderTraHalfHalf.csv",
     "algorithm": "kNN",
     "prediction": "TARGET",
-    "f_score": "macro",
+    "f_score": "weighted",
     "preprocessing": {
         "sampling": "oversampling",
         "scaler": "zscore",
         "unique_category_threshold": 20,
         "text_process": "tf-idf",
-        "impute_num": "mean",     
-        "impute_cat": "mode"      
+        "impute_num": "delete",
+        "impute_cat": ""
     },
     "kNN": {
         "k": {

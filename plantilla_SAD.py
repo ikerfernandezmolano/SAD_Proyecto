@@ -160,31 +160,57 @@ def process_missing_values(numerical_feature, categorical_feature):
         # Leemos la estrategia del JSON (si no la pones, usa mediana y moda por defecto)
         impute_num = args.preprocessing.get("impute_num", "median").lower()
         impute_cat = args.preprocessing.get("impute_cat", "mode").lower()
+        package['impute_num'] = impute_num
+        package['impute_cat'] = impute_cat
         
         # Numéricas
         for col in numerical_feature.columns:
             if col in data.columns and data[col].isnull().any():
                 data[col] = pd.to_numeric(data[col], errors="coerce")
-                
-                if impute_num == "mean":
-                    data[col] = data[col].fillna(data[col].mean())
-                elif impute_num == "constant":
-                    data[col] = data[col].fillna(0) # Rellena con 0
-                else: # Por defecto: mediana
-                    data[col] = data[col].fillna(data[col].median())
+
+        if impute_num == "constant":
+            while True:
+                try:
+                    package['impute_num_const'] = int(
+                        input("¿Qué constante quieres utilizar para la imputación de valores numéricos?: "))
+                    break  # sale del bucle si es válido
+                except ValueError:
+                    print("Por favor, introduce un número entero válido.")
+
+        if impute_num == "delete":
+            data = data.dropna(subset=numerical_feature.columns)
+        else:
+            for col in numerical_feature.columns:
+                if col in data.columns and data[col].isnull().any():
+                    if impute_num == "mean":
+                        data[col] = data[col].fillna(data[col].mean())
+                    elif impute_num == "mode":
+                        data[col] = data[col].fillna(data[col].mode()[0])
+                    elif impute_num == "constant":
+                        data[col] = data[col].fillna(package['impute_num_const'])
+                    else: # Por defecto: mediana
+                        data[col] = data[col].fillna(data[col].median())
 
         # Categóricas
-        for col in categorical_feature.columns:
-            if col in data.columns and data[col].isnull().any():
-                if impute_cat == "constant":
-                    data[col] = data[col].fillna("Desconocido")
-                else: # Por defecto: moda
-                    moda = data[col].mode(dropna=True)
-                    fill_value = moda.iloc[0] if not moda.empty else "Desconocido"
-                    data[col] = data[col].fillna(fill_value)
+        if impute_cat == "constant":
+            package['impute_cat_const'] = str(
+                input("¿Qué constante quieres utilizar para la imputación de valores categoriales?: "))
+
+        if impute_cat == "delete":
+            data = data.dropna(subset=categorical_feature.columns)
+        else:
+            for col in categorical_feature.columns:
+                if col in data.columns and data[col].isnull().any():
+                    if impute_cat == "constant":
+                        data[col] = data[col].fillna(package['impute_cat_const'])
+                    else: # Por defecto: moda
+                        moda = data[col].mode(dropna=True)
+                        fill_value = moda.iloc[0] if not moda.empty else "Desconocido"
+                        data[col] = data[col].fillna(fill_value)
 
         # Resto de columnas object/texto
-        object_cols = data.select_dtypes(include=["object"]).columns
+        object_cols = data.select_dtypes(include=["object"]).columns.difference(categorical_feature.columns)
+
         for col in object_cols:
             if data[col].isnull().any():
                 data[col] = data[col].fillna("")
