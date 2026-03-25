@@ -73,13 +73,16 @@ def parse_args():
         with open(args.json, 'r') as f:
             config = json.load(f)
 
+        lista_algoritmos = ["kNN", "decision_tree", "random_forest", "naive_bayes"]
+
         for key, value in config.items():
-            setattr(args, key, value)
+            if key not in lista_algoritmos:
+                setattr(args, key, value)
+
+        args.parameters = config.get(args.algorithm, {})
 
         if not hasattr(args, 'preprocessing') or args.preprocessing is None:
             args.preprocessing = {}
-        if not hasattr(args, 'parameters') or args.parameters is None:
-            args.parameters = {}
 
     except FileNotFoundError:
         print(f"Error: No se encontró el archivo {args.json}")
@@ -395,46 +398,8 @@ def preprocesar_datos():
     return data
 
 # ===========================
-# Funciones compartidas
-# ===========================
-
-def exampleMessage(algorithm):
-    if algorithm.lower() == 'knn':
-        print("""JSON ejemplo para kNN:
-        {
-            "data_file": "file.csv",
-            "algorithm": "kNN",
-            "prediction": "nombreColAPredecir",
-            "parameters": {
-                "k": {
-                    "valueMin": value,
-                    "valueMax": value,
-                    "step": value
-                },
-                "weights": "uniform/distance",
-                "p": (1,2),
-                "f_score": "macro/micro/weighted/none"
-            }
-        }""")
-    elif algorithm.lower() == 'decision_tree':
-        print("""JSON ejemplo para el árbol de decisión:
-        {
-            "data_file": "archivo csv",
-            "algorithm": "decision_tree",
-            "parameters": {
-                "max_depth": [valor1, valor2, ..., valorn],
-                "min_samples_leaf": [1, 2],
-                "criterion": ["gini", "entropy"]
-                "f_score": ["macro", "micro", "avg", "none"]
-            }
-        }""")
-    else:
-        print("""JSON ejemplo para algoritmo:""")
-
-# ===========================
 # Funciones calculos
 # ===========================
-
 
 # =========================================================================
 # EXPLICACIÓN DE METRICAS
@@ -472,7 +437,7 @@ def exampleMessage(algorithm):
 # =========================================================================
 
 def calcular_metricas(y_test, y_pred):
-    requested_fscore = str(args.parameters.get("f_score", "macro")).lower() # obtenemos el tipo de fscore que queremos calcular, por defecto macro, y lo convertimos a minúsculas para evitar problemas
+    requested_fscore = str(getattr(args, 'f_score', 'macro')).lower() # obtenemos el tipo de fscore que queremos calcular, por defecto macro, y lo convertimos a minúsculas para evitar problemas
     if requested_fscore not in ["micro", "macro", "weighted", "none"]:
         requested_fscore = "macro"
 
@@ -545,6 +510,7 @@ def save_model(gs):
     """
     try:
         package['model'] = gs
+        package['unique_category_threshold'] = args.preprocessing.get("unique_category_threshold", 20)
         algorithm = args.algorithm
         with open(f'output/Modelo{algorithm}.pkl', 'wb') as file:
             pickle.dump(package, file)
@@ -559,7 +525,7 @@ def save_model(gs):
 
         with open(f'output/Results_{algorithm}.csv', 'w', newline='') as file:
             writer = csv.writer(file)
-            fscore = args.parameters.get("f_score", "macro")
+            fscore = getattr(args, 'f_score', 'macro')
             writer.writerow(['NombreMod', 'Precisión', 'Recall', f'F_score({fscore})'])
 
             # Iteramos usando el índice para acceder a todas las listas a la vez
@@ -624,7 +590,6 @@ def kNN():
 
     if not all(isinstance(v, int) and v > 0 for v in [k_min, k_max, k_step]) or k_min > k_max:
         print("Error en la configuración de k.")
-        exampleMessage("kNN")
         sys.exit(1)
 
     weights = args.parameters.get("weights", ["uniform"])
@@ -632,7 +597,6 @@ def kNN():
         weights = [weights]
     if not isinstance(weights, list) or not all(w in ["uniform", "distance"] for w in weights):
         print("Error en la configuración de weights.")
-        exampleMessage("kNN")
         sys.exit(1)
 
     p_values = args.parameters.get("p", [2])
@@ -640,7 +604,6 @@ def kNN():
         p_values = [p_values]
     if not isinstance(p_values, list) or not all(p in [1, 2] for p in p_values):
         print("Error en la configuración de p.")
-        exampleMessage("kNN")
         sys.exit(1)
 
     X_train, X_dev, y_train, y_dev = divide_data()
@@ -662,7 +625,7 @@ def kNN():
     }
 
     # Configuramos las métricas de evaluación
-    fscore_param = args.parameters.get('f_score', 'macro').lower()
+    fscore_param = getattr(args, 'f_score', 'macro').lower()
     scoring_metrics = {
         'precision': f'precision_{fscore_param}',
         'recall': f'recall_{fscore_param}',
@@ -714,7 +677,7 @@ def decision_tree():
     }
 
     # Configuramos las métricas de evaluación
-    fscore_param = args.parameters.get('f_score', 'macro').lower()
+    fscore_param = getattr(args, 'f_score', 'macro').lower()
     scoring_metrics = {
         'precision': f'precision_{fscore_param}',
         'recall': f'recall_{fscore_param}',
@@ -759,7 +722,7 @@ def random_forest():
     }
 
     # Configuramos las métricas de evaluación
-    fscore_param = args.parameters.get('f_score', 'macro').lower()
+    fscore_param = getattr(args, 'f_score', 'macro').lower()
     scoring_metrics = {
         'precision': f'precision_{fscore_param}',
         'recall': f'recall_{fscore_param}',
@@ -799,7 +762,7 @@ def naive_bayes():
     }
 
     # Configuramos las métricas de evaluación
-    fscore_param = args.parameters.get('f_score', 'macro').lower()
+    fscore_param = getattr(args, 'f_score', 'macro').lower()
     scoring_metrics = {
         'precision': f'precision_{fscore_param}',
         'recall': f'recall_{fscore_param}',

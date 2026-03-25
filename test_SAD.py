@@ -52,9 +52,6 @@ def parse_args():
         for key, value in config.items():
             setattr(args, key, value)
 
-        if not hasattr(args, 'preprocessing') or args.preprocessing is None:
-            args.preprocessing = {}
-
     except FileNotFoundError:
         print(f"Error: No se encontró el archivo {args.json}")
         sys.exit(1)
@@ -101,7 +98,7 @@ def select_features():
         if args.prediction in numerical_feature.columns:
             numerical_feature = numerical_feature.drop(columns=[args.prediction])
 
-        unique_threshold = args.preprocessing.get("unique_category_threshold", 20)
+        unique_threshold = package['unique_category_threshold']
         # Categorical features
         categorical_feature = data.select_dtypes(include='object')
         categorical_feature = categorical_feature.loc[:, categorical_feature.nunique() <= unique_threshold]

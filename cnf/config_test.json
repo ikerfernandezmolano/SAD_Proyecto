@@ -1,8 +1,5 @@
 {
-    "data_file": "orders.csv",
-    "model": "Modelonaive_bayes.pkl",
-    "prediction": "tshirt_category",
-    "preprocessing": {
-        "unique_category_threshold": 20
-    }
+    "data_file": "SantanderTraHalfHalf.csv",
+    "model": "ModelokNN.pkl",
+    "prediction": "TARGET"
 }
