@@ -634,13 +634,23 @@ def mostrar_resultados(gs, x_dev, y_dev):
 def kNN():
 
     k_cfg = args.parameters.get("k", {})
+    k_values = k_cfg.get("kValues", [])
     k_min = k_cfg.get("valueMin")
     k_max = k_cfg.get("valueMax")
     k_step = k_cfg.get("step")
 
-    if not all(isinstance(v, int) and v > 0 for v in [k_min, k_max, k_step]) or k_min > k_max:
-        print("Error en la configuración de k.")
-        sys.exit(1)
+    if k_values and isinstance(k_values, list) and len(k_values) > 0:
+        if not all(isinstance(v, int) and v > 0 for v in k_values):
+            print("Error: Todos los valores en 'kValues' deben ser enteros mayores que 0.")
+            sys.exit(1)
+        k_list = k_values
+        print(Fore.CYAN + f"Usando valores fijos para k: {k_list}" + Fore.RESET)
+    else:
+        if not all(isinstance(v, int) and v > 0 for v in [k_min, k_max, k_step]) or k_min > k_max:
+            print("Error en la configuración de k.")
+            sys.exit(1)
+        k_list = list(range(k_min, k_max + 1, k_step))
+        print(Fore.CYAN + f"Usando rango para k: {k_list}" + Fore.RESET)
 
     weights = args.parameters.get("weights", ["uniform"])
     if isinstance(weights, str):
@@ -669,7 +679,7 @@ def kNN():
         raise ValueError("No es posible aplicar validación cruzada estratificada: alguna clase tiene menos de 2 muestras.")
 
     param_grid = {
-        'n_neighbors': range(k_min,k_max+1,k_step),
+        'n_neighbors': k_list,
         'p': p_values,
         'weights': weights
     }

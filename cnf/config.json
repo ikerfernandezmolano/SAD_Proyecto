@@ -13,6 +13,7 @@
     },
     "kNN": {
         "k": {
+            "kValues" : [],
             "valueMin": 1,
             "valueMax": 5,
             "step": 2
