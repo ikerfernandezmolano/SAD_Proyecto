@@ -1,6 +1,6 @@
 # SAD_Proyecto
 
-## ⚙️ Preparación del entorno
+## 🧾 Preparación del entorno
 
 La primera vez que ejecutes el proyecto, prepara el entorno con:
 
@@ -14,7 +14,7 @@ Para utilizar la plantilla de entrenamiento:
 
 ```bash
 source venv/bin/activate
-python plantilla_SAD.py --json archivo_config.json [-v]
+python plantilla_SAD.py --json archivo_config.json [-v/--verbose]
 ```
 
 ## 👁‍🗨 Testeo
@@ -25,3 +25,50 @@ Para utilizar la plantilla de testeo:
 source venv/bin/activate
 python test_SAD.py --json archivo_config.json
 ```
+
+## ⚙ Config
+
+{
+    "data_file": "archivo.csv",
+    "algorithm": "kNN/decision_tree/random_forest/naive_bayes",
+    "prediction": "columna_a_predecir",
+    "f_score": "macro*/micro/weighted",
+    "preprocessing": {
+        "sampling": "oversampling/undersampling",
+        "scaler": "minmax/maxabs/zscore*",
+        "unique_category_threshold": value,
+        "text_process": "tf-idf/bow",
+        "impute_num": "mean/mode/median*/constant/delete",
+        "impute_cat": "mode*/constant/delete"
+    },
+    "kNN": {
+        "k": {
+            "kValues" : [value1, value2, ..., valueN],
+            "valueMin": valueMin,
+            "valueMax": valueMax,
+            "step": valueStep
+        },
+        "weights": ["uniform"*,"distance"],
+        "p": [1,2*]
+    },
+    "decision_tree": {
+        "max_depth": [value1, value2, ..., valueN],
+        "min_samples_split": [value1, value2, ..., valueN],
+        "min_samples_leaf": [value1, value2, ..., valueN],
+        "criterion": ["gini", "entropy"]*
+    },
+    "random_forest": {
+        "n_estimators": [value1, value2, ..., valueN],
+        "max_depth": [value1, value2, ..., valueN],
+        "min_samples_split": [value1, value2, ..., valueN],
+        "min_samples_leaf": [value1, value2, ..., valueN],
+        "criterion": ["gini", "entropy"]*
+    },
+    "naive_bayes": {
+        "alpha": [value1, value2, ..., valueN] [1.0*]
+    }
+}
+
+* Valor default
+
+
