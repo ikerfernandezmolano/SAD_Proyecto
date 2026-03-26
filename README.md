@@ -28,6 +28,7 @@ python test_SAD.py --json archivo_config.json
 
 ## ⚙ Config
 
+```json
 {
     "data_file": "archivo.csv",
     "algorithm": "kNN/decision_tree/random_forest/naive_bayes",
@@ -68,6 +69,7 @@ python test_SAD.py --json archivo_config.json
         "alpha": [value1, value2, ..., valueN] [1.0*]
     }
 }
+```
 
 * Valor default
 
