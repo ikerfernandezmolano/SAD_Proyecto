@@ -14,7 +14,7 @@ Para utilizar la plantilla de entrenamiento:
 
 ```bash
 source venv/bin/activate
-python SAD_IFernandez_IHerrera.py --json archivo_config.json [-v/--verbose]
+python3 SAD_IFernandez_IHerrera.py --json archivo_config.json [-v/--verbose]
 ```
 
 ## 👁‍🗨 Testeo
@@ -23,7 +23,7 @@ Para utilizar la plantilla de testeo:
 
 ```bash
 source venv/bin/activate
-python SAD_test_IFernandez_IHerrera.py --json archivo_config.json
+python3 SAD_test_IFernandez_IHerrera.py --json archivo_config.json
 ```
 
 ## ⚙ Config
