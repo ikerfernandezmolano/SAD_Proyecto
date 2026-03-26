@@ -1,14 +1,14 @@
 {
-    "data_file": "SantanderTraHalfHalf.csv",
+    "data_file": "archivo.csv",
     "algorithm": "kNN",
-    "prediction": "TARGET",
-    "f_score": "weighted",
+    "prediction": "columna_a_predecir",
+    "f_score": "macro",
     "preprocessing": {
         "sampling": "oversampling",
         "scaler": "zscore",
         "unique_category_threshold": 20,
         "text_process": "tf-idf",
-        "impute_num": "delete",
+        "impute_num": "",
         "impute_cat": ""
     },
     "kNN": {
@@ -18,20 +18,23 @@
             "valueMax": 5,
             "step": 2
         },
-        "weights": ["uniform","distance"],
-        "p": 2
+        "weights": ["distance"],
+        "p": [2]
     },
     "decision_tree": {
-        "max_depth": [3, 5, 10],
-        "min_samples_leaf": [1, 2],
-        "criterion": ["gini", "entropy"]
+        "max_depth": [],
+        "min_samples_split": [],
+        "min_samples_leaf": [],
+        "criterion": []
     },
     "random_forest": {
-        "n_estimators": [100,200],
-        "max_depth": [20,30, null],
-        "criterion": ["entropy"]
+        "n_estimators": [],
+        "max_depth": [],
+        "min_samples_split": [],
+        "min_samples_leaf": [],
+        "criterion": []
     },
     "naive_bayes": {
-        "alpha": [1e-7,1.0]
+        "alpha": []
     }
 }
