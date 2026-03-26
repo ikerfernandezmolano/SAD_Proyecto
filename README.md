@@ -10,9 +10,18 @@ source setup.sh
 
 ## ▶️ Ejecución del entorno
 
-Para utilizar la plantilla:
+Para utilizar la plantilla de entrenamiento:
 
 ```bash
 source venv/bin/activate
-python plantilla_SAD.py --json archivo.json [-v]
+python plantilla_SAD.py --json archivo_config.json [-v]
+```
+
+## 👁‍🗨 Testeo
+
+Para utilizar la plantilla de testeo:
+
+```bash
+source venv/bin/activate
+python test_SAD.py --json archivo_config.json
 ```
