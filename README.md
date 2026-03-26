@@ -73,4 +73,12 @@ python test_SAD.py --json archivo_config.json
 
 * Valor default
 
+```json
+{
+    "data_file": "archivo.csv",
+    "model": "modelo.pkl",
+    "prediction": "columna_a_predecir"
+}
+```
+
 
