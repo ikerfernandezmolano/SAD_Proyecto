@@ -2,6 +2,8 @@
 
 ## 🧾 Preparación del entorno
 
+La versión de Python a utilizar es **Python 3.12.3**
+
 La primera vez que ejecutes el proyecto, prepara el entorno con:
 
 ```bash
