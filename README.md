@@ -33,6 +33,7 @@ python3 SAD_test_IFernandez_IHerrera.py --json archivo_config.json
     "data_file": "archivo.csv",
     "algorithm": "kNN/decision_tree/random_forest/naive_bayes",
     "prediction": "columna_a_predecir",
+    "language": "language",
     "f_score": "macro*/micro/weighted",
     "preprocessing": {
         "sampling": "oversampling/undersampling",
