@@ -8,6 +8,7 @@
         "scaler": "zscore",
         "unique_category_threshold": 20,
         "text_process": "tf-idf",
+        "language": "language",
         "impute_num": "",
         "impute_cat": ""
     },
