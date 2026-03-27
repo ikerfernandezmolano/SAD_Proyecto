@@ -315,7 +315,7 @@ def simplify_text(text_feature):
             return
 
         stemmer = PorterStemmer()
-        stop_words = set(stopwords.words('english'))
+        stop_words = set(stopwords.words(args.preprocessing.get("language","english")))
 
         def clean_text(text):
             text = str(text).lower()
