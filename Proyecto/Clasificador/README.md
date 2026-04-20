@@ -16,16 +16,7 @@ Para utilizar la plantilla de entrenamiento:
 
 ```bash
 source venv/bin/activate
-python3 SAD_IFernandez_IHerrera.py --json archivo_config.json [-v/--verbose]
-```
-
-## 👁‍🗨 Testeo
-
-Para utilizar la plantilla de testeo:
-
-```bash
-source venv/bin/activate
-python3 SAD_test_IFernandez_IHerrera.py --json archivo_config.json
+python3 clasificador.py --json archivo_config.json [-v/--verbose] [-m/--mode]
 ```
 
 ## ⚙ Config
@@ -36,6 +27,7 @@ python3 SAD_test_IFernandez_IHerrera.py --json archivo_config.json
     "algorithm": "kNN/decision_tree/random_forest/naive_bayes",
     "prediction": "columna_a_predecir",
     "f_score": "macro*/micro/weighted",
+    "model": "modelo.pkl",
     "preprocessing": {
         "sampling": "oversampling/undersampling",
         "scaler": "minmax/maxabs/zscore*",
@@ -75,13 +67,3 @@ python3 SAD_test_IFernandez_IHerrera.py --json archivo_config.json
 ```
 
 * Valor default
-
-```json
-{
-    "data_file": "archivo.csv",
-    "model": "modelo.pkl",
-    "prediction": "columna_a_predecir"
-}
-```
-
-

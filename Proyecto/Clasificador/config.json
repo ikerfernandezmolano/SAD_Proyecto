@@ -1,42 +1,42 @@
 {
     "data_file": "archivo.csv",
-    "algorithm": "kNN",
+    "algorithm": "kNN/decision_tree/random_forest/naive_bayes",
     "prediction": "columna_a_predecir",
-    "f_score": "macro",
+    "f_score": "macro*/micro/weighted",
     "model": null,
     "preprocessing": {
-        "sampling": "oversampling",
-        "scaler": "zscore",
-        "unique_category_threshold": 20,
-        "text_process": "tf-idf",
+        "sampling": "oversampling/undersampling",
+        "scaler": "minmax/maxabs/zscore*",
+        "unique_category_threshold": value,
+        "text_process": "tf-idf/bow",
         "language": "language",
-        "impute_num": "",
-        "impute_cat": ""
+        "impute_num": "mean/mode/median*/constant/delete",
+        "impute_cat": "mode*/constant/delete"
     },
     "kNN": {
         "k": {
-            "kValues" : [],
-            "valueMin": 1,
-            "valueMax": 5,
-            "step": 2
+            "kValues" : [value1, value2, ..., valueN],
+            "valueMin": valueMin,
+            "valueMax": valueMax,
+            "step": valueStep
         },
-        "weights": ["distance"],
-        "p": [2]
+        "weights": ["uniform"*,"distance"],
+        "p": [1,2*]
     },
     "decision_tree": {
-        "max_depth": [],
-        "min_samples_split": [],
-        "min_samples_leaf": [],
-        "criterion": []
+        "max_depth": [value1, value2, ..., valueN],
+        "min_samples_split": [value1, value2, ..., valueN],
+        "min_samples_leaf": [value1, value2, ..., valueN],
+        "criterion": ["gini", "entropy"]*
     },
     "random_forest": {
-        "n_estimators": [],
-        "max_depth": [],
-        "min_samples_split": [],
-        "min_samples_leaf": [],
-        "criterion": []
+        "n_estimators": [value1, value2, ..., valueN],
+        "max_depth": [value1, value2, ..., valueN],
+        "min_samples_split": [value1, value2, ..., valueN],
+        "min_samples_leaf": [value1, value2, ..., valueN],
+        "criterion": ["gini", "entropy"]*
     },
     "naive_bayes": {
-        "alpha": []
+        "alpha": [value1, value2, ..., valueN] [1.0*]
     }
 }
