@@ -64,6 +64,7 @@ def parse_args():
     """
     parser = argparse.ArgumentParser(description="Sistema de Apoyo a la Decisión - Clasificador")
     parser.add_argument("-j", "--json", help="Archivo de configuración JSON", required=True)
+    parser.add_argument("-m", "--mode", help="Train o test", required=True)  # train o test
     parser.add_argument("-v", "--verbose", help="Mostrar métricas extendidas", action="store_true") # si se pone -v o --verbose se mostrarán métricas extendidas, si no, solo las básicas
 
     args = parser.parse_args() # obtiene el json que le pasamos
