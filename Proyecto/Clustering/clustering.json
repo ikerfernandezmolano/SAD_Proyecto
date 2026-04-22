@@ -1,0 +1,7 @@
+{
+    "data_file": "../Datos/Spotify_PNN.csv",
+    "text_column": "review", 
+    "sentiment_column": "sentiment_classification",
+    "target_sentiment": "negative",
+    "language": "english"
+}
