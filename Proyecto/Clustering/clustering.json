@@ -2,6 +2,10 @@
     "data_file": "../Datos/Spotify_PNN.csv",
     "text_column": "review", 
     "sentiment_column": "sentiment_classification",
-    "target_sentiment": "negative",
-    "language": "english"
+    "target_sentiment": ["negative", "positive", "neutral"],
+    "language": "english",
+    "lda": {
+        "k_min": 2,
+        "k_max": 10
+    }
 }
