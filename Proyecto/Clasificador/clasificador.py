@@ -33,11 +33,13 @@ from sklearn.naive_bayes import MultinomialNB
 # Nltk
 import nltk
 from nltk.corpus import stopwords
-from nltk.stem import PorterStemmer
-from nltk.tokenize import word_tokenize
+from nltk.stem import WordNetLemmatizer
+from nltk.tokenize import RegexpTokenizer
 # Imblearn
 from imblearn.under_sampling import RandomUnderSampler
 from imblearn.over_sampling import RandomOverSampler
+from imblearn.over_sampling import SMOTE
+# tqdm
 from tqdm import tqdm
 
 global data
@@ -238,29 +240,36 @@ def reescaler(numerical_feature):
     """
     global data
     try:
-        if numerical_feature.columns.size == 0:
-            print(Fore.YELLOW + "No se han encontrado columnas numéricas para reescalar" + Fore.RESET)
-            return
+        if numerical_feature.columns.size > 0:
+            scaler_name = args.preprocessing.get("scaler", "standard").lower()
 
-        scaler_name = args.preprocessing.get("scaler", "standard").lower()
-
-        if scaler_name == "minmax":
-            scaler = MinMaxScaler()
-        elif scaler_name == "maxabs":
-            scaler = MaxAbsScaler()
-        elif scaler_name == "zscore":
-            scaler = StandardScaler()
-        else:
-            scaler = StandardScaler()
-
-        cols = [col for col in numerical_feature.columns if col in data.columns]
-
-        if cols:
-            data[cols] = scaler.fit_transform(data[cols])
-            print(Fore.GREEN + "Datos reescalados con éxito" + Fore.RESET)
+            if scaler_name == "minmax":
+                scaler = MinMaxScaler()
+                data[numerical_feature.columns] = scaler.fit_transform(data[numerical_feature.columns])
+                print(Fore.GREEN + f"Datos reescalados con éxito utilizando {scaler_name}" + Fore.RESET)
+            elif scaler_name == "maxabs":
+                scaler = MaxAbsScaler()
+                data[numerical_feature.columns] = scaler.fit_transform(data[numerical_feature.columns])
+                print(Fore.GREEN + f"Datos reescalados con éxito utilizando {scaler_name}" + Fore.RESET)
+            elif scaler_name == "zscore":
+                scaler = StandardScaler()
+                data[numerical_feature.columns] = scaler.fit_transform(data[numerical_feature.columns])
+                print(Fore.GREEN + f"Datos reescalados con éxito utilizando {scaler_name}" + Fore.RESET)
+            elif scaler_name == "normalizer":
+                scaler = Normalizer()
+                data[numerical_feature.columns] = scaler.fit_transform(data[numerical_feature.columns])
+                print(Fore.GREEN + f"Datos reescalados con éxito utilizando {scaler_name}" + Fore.RESET)
+            else:
+                scaler = None
+                print(Fore.YELLOW+"No se están escalando los datos"+Fore.RESET)
+            
             global package
             package['scaler'] = scaler
 
+        else:
+            print(Fore.YELLOW + "No se han encontrado columnas numéricas para reescalar" + Fore.RESET)
+            return
+            
     except Exception as e:
             print(Fore.RED + "Error al reescalar los datos" + Fore.RESET)
             print(e)
@@ -268,35 +277,48 @@ def reescaler(numerical_feature):
 
 
 def cat2num(categorical_feature):
-    global data, package  # Asegúrate de que 'package' existe para guardar cosas
+    """
+    Convierte las características categóricas en características numéricas utilizando la codificación de etiquetas.
+
+    Parámetros:
+    categorical_feature (DataFrame): El DataFrame que contiene las características categóricas a convertir.
+
+    """
+    global data, package
     try:
-        cols = [col for col in categorical_feature.columns if col in data.columns]
-        if not cols:
+        if categorical_feature.columns.size > 0:
+
+            # Filtrar columnas que realmente existen en data
+            cols = [col for col in categorical_feature.columns if col in data.columns]
+            if not cols:
+                return
+
+            encoder = OneHotEncoder(
+                handle_unknown='ignore',
+                sparse_output=False
+            )
+
+            encoded_data = encoder.fit_transform(data[cols])
+
+            # Crear DataFrame con nombres correctos
+            encoded_df = pd.DataFrame(
+                encoded_data,
+                columns=encoder.get_feature_names_out(cols),
+                index=data.index
+            )
+
+            data = pd.concat([data.drop(columns=cols), encoded_df], axis=1)
+
+            # GUARDAMOS el objeto en el package para el Test
+            package['categorical_encoder'] = encoder
+
+            print(Fore.GREEN + "OneHotEncoder entrenado y guardado" + Fore.RESET)
+        else:
+            print(Fore.YELLOW + "No se han encontrado columnas categóricas para convertir" + Fore.RESET)
             return
-
-        # Creamos el encoder en el entrenamiento
-        # handle_unknown='ignore' es VITAL para que el Test no pete con clases nuevas
-        encoder = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
-
-        # Aprendemos las categorías
-        encoder.fit(data[cols])
-
-        # Transformamos y reemplazamos en el DataFrame
-        encoded_data = encoder.transform(data[cols])
-        encoded_df = pd.DataFrame(
-            encoded_data,
-            columns=encoder.get_feature_names_out(cols),
-            index=data.index
-        )
-
-        data = pd.concat([data.drop(columns=cols), encoded_df], axis=1)
-
-        # GUARDAMOS el objeto en el package para el Test
-        package['categorical_encoder'] = encoder
-
-        print(Fore.GREEN + "OneHotEncoder entrenado y guardado" + Fore.RESET)
+        
     except Exception as e:
-        print(Fore.RED + f"Error en cat2num (Train): {e}" + Fore.RESET)
+        print(Fore.RED + f"Error en cat2num: {e}" + Fore.RESET)
         sys.exit(1)
 
 def simplify_text(text_feature):
@@ -311,29 +333,32 @@ def simplify_text(text_feature):
     """
     global data
     try:
-        if text_feature.columns.size == 0:
+        if text_feature.columns.size > 0:
+            for col in text_feature.columns:
+
+                # Minúsculas
+                data[col] = data[col].apply(lambda x: x.lower())
+
+                # Tokenizamos
+                data[col] = data[col].apply(lambda x: RegexpTokenizer(r'\w+').tokenize(x))
+
+                # Borrar numeros
+                data[col] = data[col].apply(lambda x: [word for word in x if not word.isnumeric()])
+                
+                # Borrar stopwords
+                data[col] = data[col].apply(lambda x: [word for word in x if word not in stopwords.words(args.preprocessing.get("language", "english"))])
+
+                # Lemmatizar
+                data[col] = data[col].apply(lambda x: [WordNetLemmatizer().lemmatize(word) for word in x])
+                
+                # Borrar caracteres especiales
+                data[col] = data[col].apply(lambda x: ''.join(c for c in unicodedata.normalize('NFD', ' '.join(x)) if unicodedata.category(c) != 'Mn'))
+
+            print(Fore.GREEN + "Texto simplificado con éxito" + Fore.RESET)
+
+        else:
             print(Fore.YELLOW + "No se han encontrado columnas de texto para simplificar" + Fore.RESET)
-            return
 
-        stemmer = PorterStemmer()
-        stop_words = set(stopwords.words(args.preprocessing.get("language","english")))
-        package['language'] = args.preprocessing.get("language","english")
-
-        def clean_text(text):
-            text = str(text).lower()
-            text = text.translate(str.maketrans('', '', string.punctuation))
-            tokens = word_tokenize(text)
-            tokens = [tok for tok in tokens if tok.isalpha()]
-            tokens = [tok for tok in tokens if tok not in stop_words]
-            tokens = [stemmer.stem(tok) for tok in tokens]
-            tokens.sort()
-            return " ".join(tokens)
-
-        for col in text_feature.columns:
-            if col in data.columns:
-                data[col] = data[col].fillna("").astype(str).apply(clean_text)
-
-        print(Fore.GREEN + "Texto simplificado con éxito" + Fore.RESET)
     except Exception as e:
         print(Fore.RED + "Error al simplificar el texto" + Fore.RESET)
         print(e)
@@ -381,7 +406,7 @@ def process_text(text_feature):
         print(e)
         sys.exit(1)
 
-def over_under_sampling(X_train, y_train, desbalanceado):
+def sampling(X_train, y_train, desbalanceado):
     """
     Aplica técnicas de balanceo de clases (Oversampling o Undersampling)
     sobre el conjunto de datos global para evitar sesgos en el modelo.
@@ -405,37 +430,77 @@ def over_under_sampling(X_train, y_train, desbalanceado):
 
         if answer.lower() == "y":
             if sampling_type == "oversampling":
-                sampler = RandomOverSampler(random_state=42)
+                sampler = RandomOverSampler(sampling_strategy='minority', random_state=42)
+                x = data.drop(columns=[args.prediction])
+                y = data[args.prediction]
+                x, y = sampler.fit_resample(x, y)
+                x = pd.DataFrame(x, columns=data.drop(columns=[args.prediction]).columns)
+                y = pd.Series(y, name=args.prediction)
+                data = pd.concat([x, y], axis=1)
             elif sampling_type == "undersampling":
-                sampler = RandomUnderSampler(random_state=42)
+                sampler = RandomUnderSampler(sampling_strategy='majority', random_state=42)
+                x = data.drop(columns=[args.prediction])
+                y = data[args.prediction]
+                x, y = sampler.fit_resample(x, y)
+                x = pd.DataFrame(x, columns=data.drop(columns=[args.prediction]).columns)
+                y = pd.Series(y, name=args.prediction)
+                data = pd.concat([x, y], axis=1)
+            elif sampling_type == "smote":
+                sampler = SMOTE(sampling_strategy='auto', random_state=42)
+                x = data.drop(columns=[args.prediction])
+                y = data[args.prediction]
+                x, y = sampler.fit_resample(x, y)
+                x = pd.DataFrame(x, columns=data.drop(columns=[args.prediction]).columns)
+                y = pd.Series(y, name=args.prediction)
+                data = pd.concat([x, y], axis=1) 
             else:
+                print(Fore.YELLOW + f"Sampling no aplicado, algo salió mal" + Fore.RESET)
                 return X_train, y_train
             X_res, y_res = sampler.fit_resample(X_train, y_train)
             print(Fore.GREEN + f"Sampling ({sampling_type}) aplicado" + Fore.RESET)
             return X_res, y_res
         else:
+            print(Fore.YELLOW + f"Sampling no aplicado." + Fore.RESET)
             return X_train, y_train
     except Exception as e:
         print(Fore.YELLOW + "No se pudo aplicar sampling: " + str(e) + Fore.RESET)
         return X_train, y_train
 
 def preprocesar_datos():
-    # Descargamos los recursos necesarios de nltk
+    """
+    Función para preprocesar los datos
+        1. Separamos los datos por tipos (Categoriales, numéricos y textos)
+        2. Pasar los datos de categoriales a numéricos
+        3. Tratamos missing values (Eliminar y imputar)
+        4. Reescalamos los datos datos (MinMax, Normalizer, MaxAbsScaler)
+        5. Simplificamos el texto (Normalizar, eliminar stopwords, stemming y ordenar alfabéticamente)
+        6. Tratamos el texto (TF-IDF, BOW)
+        7. Realizamos Oversampling o Undersampling
+        8. Borrar columnas no necesarias
+    :param data: Datos a preprocesar
+    :return: Datos preprocesados y divididos en train y test
+    """
+
     print("\n- Descargando diccionarios...")
     nltk.download('stopwords')
     nltk.download('punkt')
-    nltk.download('punkt_tab')
     nltk.download('wordnet')
 
     # Silencia los avisos de depuración de Pandas
     warnings.filterwarnings("ignore", category=Pandas4Warning)
 
     numerical_feature, text_feature, categorical_feature = select_features() # dividir los datos con los que trabajamos en numéricos, categóricos y de texto
+
     simplify_text(text_feature)
+
     cat2num(categorical_feature)
+
     process_missing_values(numerical_feature, categorical_feature)
+
     reescaler(numerical_feature)
+
     process_text(text_feature)
+
     return data
 
 # ===========================
@@ -529,7 +594,7 @@ def divide_data():
 
         # Dividimos los datos en entrenamiento y desarrollo (80% - 20%) de forma estratificada para mantener la proporción de clases.
         X_train, X_dev, y_train, y_dev = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-        X_train, y_train = over_under_sampling(X_train, y_train, desbalanceado)
+        X_train, y_train = sampling(X_train, y_train, desbalanceado)
         return X_train, X_dev, y_train, y_dev
     except Exception as e:
         print(Fore.RED + "Error al dividir datos: " + str(e) + Fore.RESET)
@@ -634,57 +699,18 @@ def mostrar_resultados(gs, x_dev, y_dev):
 # - Datos muy desbalanceados (la clase mayoritaria domina, salvo que se use weights).
 # =========================================================================
 def kNN():
+    """
+    Función para implementar el algoritmo kNN.
+    Hace un barrido de hiperparametros para encontrar los parametros optimos
 
-    k_cfg = args.parameters.get("k", {})
-    k_values = k_cfg.get("kValues", [])
-    k_min = k_cfg.get("valueMin")
-    k_max = k_cfg.get("valueMax")
-    k_step = k_cfg.get("step")
+    :param data: Conjunto de datos para realizar la clasificación.
+    :type data: pandas.DataFrame
+    :return: Tupla con la clasificación de los datos.
+    :rtype: tuple
+    """
 
-    if k_values and isinstance(k_values, list) and len(k_values) > 0:
-        if not all(isinstance(v, int) and v > 0 for v in k_values):
-            print("Error: Todos los valores en 'kValues' deben ser enteros mayores que 0.")
-            sys.exit(1)
-        k_list = k_values
-        print(Fore.CYAN + f"Usando valores fijos para k: {k_list}" + Fore.RESET)
-    else:
-        if not all(isinstance(v, int) and v > 0 for v in [k_min, k_max, k_step]) or k_min > k_max:
-            print("Error en la configuración de k.")
-            sys.exit(1)
-        k_list = list(range(k_min, k_max + 1, k_step))
-        print(Fore.CYAN + f"Usando rango para k: {k_list}" + Fore.RESET)
-
-    weights = args.parameters.get("weights", ["uniform"])
-    if isinstance(weights, str):
-        weights = [weights]
-    if not isinstance(weights, list) or not all(w in ["uniform", "distance"] for w in weights):
-        print("Error en la configuración de weights.")
-        sys.exit(1)
-
-    p_values = args.parameters.get("p", [2])
-    if isinstance(p_values, int):
-        p_values = [p_values]
-    if not isinstance(p_values, list) or not all(p in [1, 2] for p in p_values):
-        print("Error en la configuración de p.")
-        sys.exit(1)
-
+    # Dividimos los datos en entrenamiento y dev
     X_train, X_dev, y_train, y_dev = divide_data()
-
-    unique_classes, class_counts = np.unique(y_train, return_counts=True)
-    min_class_count = class_counts.min()
-
-    if min_class_count >= 5:
-        cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-    elif min_class_count >= 2:
-        cv = StratifiedKFold(n_splits=int(min_class_count), shuffle=True, random_state=42)
-    else:
-        raise ValueError("No es posible aplicar validación cruzada estratificada: alguna clase tiene menos de 2 muestras.")
-
-    param_grid = {
-        'n_neighbors': k_list,
-        'p': p_values,
-        'weights': weights
-    }
 
     # Configuramos las métricas de evaluación
     fscore_param = getattr(args, 'f_score', 'macro').lower()
@@ -693,23 +719,27 @@ def kNN():
         'recall': f'recall_{fscore_param}',
         'f1': f'f1_{fscore_param}'
     }
+    
+    # Hacemos un barrido de hiperparametros
+    with tqdm(total=100, desc='Procesando kNN', unit='iter', leave=True) as pbar:
+        gs = GridSearchCV(KNeighborsClassifier(), args.kNN, cv=cv, n_jobs=args.cpu, scoring=scoring_metrics, refit='f1')
+        start_time = time.time()
+        gs.fit(X_train, y_train)
+        end_time = time.time()
+        for i in range(100):
+            time.sleep(random.uniform(0.06, 0.15))  # Esperamos un tiempo aleatorio
+            pbar.update(random.random()*2)  # Actualizamos la barra con un valor aleatorio
+        pbar.n = 100
+        pbar.last_print_n = 100
+        pbar.update(0)
 
-    print("Entrenando kNN y buscando los mejores parámetros...")
-    start_time = time.time()
-
-    knn = KNeighborsClassifier()
-    gs = GridSearchCV(knn, param_grid, cv=cv, n_jobs=-1, scoring=scoring_metrics, refit='f1')
-
-    # Entrenamos el modelo
-    gs.fit(X_train, y_train)
-
-    end_time = time.time()
     execution_time = end_time - start_time
     print(f"Tiempo de ejecución: {Fore.MAGENTA}{execution_time:.2f}{Fore.RESET} segundos")
 
-    # Guardamos y mostramos los resultados usando las funciones comunes
+    # Mostramos los resultados
     mostrar_resultados(gs, X_dev, y_dev)
 
+    # Guardamos el modelo utilizando pickle
     save_model(gs)
 
 # =========================================================================
@@ -729,7 +759,12 @@ def kNN():
 # =========================================================================
 def decision_tree():
     """
-    Función que entrena un modelo de Árbol de Decisión utilizando GridSearchCV.
+    Función para implementar el algoritmo de árbol de decisión.
+
+    :param data: Conjunto de datos para realizar la clasificación.
+    :type data: pandas.DataFrame
+    :return: Tupla con la clasificación de los datos.
+    :rtype: tuple
     """
 
     from sklearn.exceptions import UndefinedMetricWarning
@@ -737,17 +772,8 @@ def decision_tree():
     # Esto ignorará específicamente los avisos de precisión/f-score indefinidos
     warnings.filterwarnings("ignore", category=UndefinedMetricWarning)
 
+    # Dividimos los datos en entrenamiento y dev
     x_train, x_dev, y_train, y_dev = divide_data()
-
-    params = args.parameters if hasattr(args, 'parameters') else {}
-
-    # Extraemos los parámetros del JSON o ponemos valores por defecto si no existen
-    param_grid = {
-        'max_depth': params.get('max_depth', [None, 5, 10, 20]),
-        'min_samples_split': params.get('min_samples_split', [2, 5, 10]),
-        'min_samples_leaf': params.get('min_samples_leaf', [1, 2, 5]),
-        'criterion': params.get('criterion', ['gini', 'entropy'])
-    }
 
     # Configuramos las métricas de evaluación
     fscore_param = getattr(args, 'f_score', 'macro').lower()
@@ -756,23 +782,27 @@ def decision_tree():
         'recall': f'recall_{fscore_param}',
         'f1': f'f1_{fscore_param}'
     }
+    
+    # Hacemos un barrido de hiperparametros
+    with tqdm(total=100, desc='Procesando decision tree', unit='iter', leave=True) as pbar:
+        gs = GridSearchCV(DecisionTreeClassifier(), args.decision_tree, cv=5, n_jobs=args.cpu, scoring=scoring_metrics, refit='f1')
+        start_time = time.time()
+        gs.fit(x_train, y_train)
+        end_time = time.time()
+        for i in range(100):
+            time.sleep(random.uniform(0.06, 0.15))  # Esperamos un tiempo aleatorio
+            pbar.update(random.random()*2)  # Actualizamos la barra con un valor aleatorio
+        pbar.n = 100
+        pbar.last_print_n = 100
+        pbar.update(0)
 
-    print("Entrenando Árbol de Decisión y buscando los mejores parámetros...")
-    start_time = time.time()
-
-    # Inicializamos el modelo y la búsqueda en rejilla (GridSearch)
-    dt = DecisionTreeClassifier(random_state=42)
-    gs = GridSearchCV(dt, param_grid, cv=5, n_jobs=-1, scoring=scoring_metrics, refit='f1')
-
-    # Entrenamos el modelo
-    gs.fit(x_train, y_train)
-
-    end_time = time.time()
     execution_time = end_time - start_time
     print("Tiempo de ejecución:" + Fore.MAGENTA + f" {execution_time:.2f} " + Fore.RESET + "segundos")
 
-    # Guardamos y mostramos los resultados usando las funciones comunes
+    # Mostramos los resultados
     mostrar_resultados(gs, x_dev, y_dev)
+
+    # Guardamos el modelo utilizando pickle
     save_model(gs)
 
 # =========================================================================
@@ -793,18 +823,18 @@ def decision_tree():
 
 def random_forest():
     """
-    Función que entrena un modelo de Random Forest utilizando GridSearchCV.
-    """
-    x_train, x_dev, y_train, y_dev = divide_data()
+    Función que entrena un modelo de Random Forest utilizando GridSearchCV para encontrar los mejores hiperparámetros.
+    Divide los datos en entrenamiento y desarrollo, realiza la búsqueda de hiperparámetros, guarda el modelo entrenado
+    utilizando pickle y muestra los resultados utilizando los datos de desarrollo.
 
-    params = args.parameters if hasattr(args, 'parameters') else {}
-    param_grid = {
-        'n_estimators': params.get('n_estimators', [100, 200]),
-        'max_depth': params.get('max_depth', [None, 10, 20]),
-        'min_samples_split': params.get('min_samples_split', [2, 5]),
-        'min_samples_leaf': params.get('min_samples_leaf', [1, 2]),
-        'criterion': params.get('criterion', ['gini', 'entropy'])
-    }
+    Parámetros:
+        Ninguno
+
+    Retorna:
+        Ninguno
+    """
+    # Dividimos los datos en entrenamiento y dev
+    x_train, x_dev, y_train, y_dev = divide_data()
 
     # Configuramos las métricas de evaluación
     fscore_param = getattr(args, 'f_score', 'macro').lower()
@@ -814,21 +844,25 @@ def random_forest():
         'f1': f'f1_{fscore_param}'
     }
 
-    print("Entrenando Random Tree y buscando los mejores parámetros...")
-    start_time = time.time()
-
-    rf = RandomForestClassifier(random_state=42, n_jobs=-1)
-    gs = GridSearchCV(rf, param_grid, cv=5, n_jobs=-1, scoring=scoring_metrics, refit='f1')
-
-    with tqdm(total=1, desc='Procesando random forest', unit='modelo', leave=True) as pbar:
+    with tqdm(total=100, desc='Procesando random forest', unit='iter', leave=True) as pbar:
+        gs = GridSearchCV(RandomForestClassifier(), args.random_forest, cv=5, n_jobs=args.cpu, scoring=scoring_metrics, refit='f1')
+        start_time = time.time()
         gs.fit(x_train, y_train)
-        pbar.update(1)
+        end_time = time.time()
+        for i in range(100):
+            time.sleep(random.uniform(0.06, 0.15))  # Esperamos un tiempo aleatorio
+            pbar.update(random.random()*2)  # Actualizamos la barra con un valor aleatorio
+        pbar.n = 100
+        pbar.last_print_n = 100
+        pbar.update(0)
 
-    end_time = time.time()
     execution_time = end_time - start_time
     print("Tiempo de ejecución:" + Fore.MAGENTA + f" {execution_time} " + Fore.RESET + "segundos")
 
+    # Mostramos los resultados
     mostrar_resultados(gs, x_dev, y_dev)
+
+    # Guardamos el modelo utilizando pickle
     save_model(gs)
 
 # =========================================================================
