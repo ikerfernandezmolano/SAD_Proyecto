@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
+import random
 import sys
 import signal
 import argparse
+import unicodedata
+
 import pandas as pd
 import numpy as np
 import string
@@ -14,11 +17,11 @@ import warnings
 from colorama import Fore
 from pandas.errors import Pandas4Warning
 # Sklearn
-from sklearn.model_selection import StratifiedKFold, train_test_split
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, confusion_matrix, precision_score, recall_score, classification_report
 from sklearn.model_selection import GridSearchCV
 # Preprocesado
-from sklearn.preprocessing import MaxAbsScaler, MinMaxScaler, StandardScaler, LabelEncoder
+from sklearn.preprocessing import MaxAbsScaler, MinMaxScaler, StandardScaler, LabelEncoder, Normalizer
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from pandas.api.types import is_numeric_dtype
@@ -67,6 +70,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Sistema de Apoyo a la Decisión - Clasificador")
     parser.add_argument("-j", "--json", help="Archivo de configuración JSON", required=True)
     parser.add_argument("-m", "--mode", help="Train o test", required=True)  # train o test
+    parser.add_argument("-c", "--cpu", help="Número de CPUs a utilizar [-1 para usar todos]", required=False, default=-1,type=int)
     parser.add_argument("-v", "--verbose", help="Mostrar métricas extendidas", action="store_true") # si se pone -v o --verbose se mostrarán métricas extendidas, si no, solo las básicas
 
     args = parser.parse_args() # obtiene el json que le pasamos
@@ -76,16 +80,8 @@ def parse_args():
         with open(args.json, 'r') as f:
             config = json.load(f)
 
-        lista_algoritmos = ["kNN", "decision_tree", "random_forest", "naive_bayes"]
-
         for key, value in config.items():
-            if key not in lista_algoritmos:
-                setattr(args, key, value)
-
-        args.parameters = config.get(args.algorithm, {})
-
-        if not hasattr(args, 'preprocessing') or args.preprocessing is None:
-            args.preprocessing = {}
+            setattr(args, key, value)
 
     except FileNotFoundError:
         print(f"Error: No se encontró el archivo {args.json}")
@@ -101,7 +97,7 @@ def load_data(file):
     """
 
     try:
-        data = pd.read_csv(file, encoding='utf-8')
+        data = pd.read_csv(file, encoding='utf-8', sep=args.sep)
         print(Fore.GREEN + "Datos cargados con éxito" + Fore.RESET)
         return data
     except Exception as e:
@@ -418,6 +414,7 @@ def sampling(X_train, y_train, desbalanceado):
     Retorna:
     None (modifica el DataFrame global 'data' directamente).
     """
+    global data
     sampling_type = args.preprocessing.get("sampling", "none")
 
     if sampling_type == "none":
@@ -709,6 +706,23 @@ def kNN():
     :rtype: tuple
     """
 
+    k = args.kNN["k"].get("kValues")
+
+    if not k:
+        k_min = args.kNN["k"].get("valueMin")
+        k_max = args.kNN["k"].get("valueMax")
+        k_step = args.kNN["k"].get("step")
+        k = list(range(k_min, k_max + 1, k_step))
+
+    weights = args.kNN.get("weights", ["distance","uniform"])
+    p_values = args.kNN.get("p", [1,2])
+
+    k_params = {
+        'n_neighbors': k,
+        'p': p_values,
+        'weights': weights
+    }
+
     # Dividimos los datos en entrenamiento y dev
     X_train, X_dev, y_train, y_dev = divide_data()
 
@@ -722,7 +736,7 @@ def kNN():
     
     # Hacemos un barrido de hiperparametros
     with tqdm(total=100, desc='Procesando kNN', unit='iter', leave=True) as pbar:
-        gs = GridSearchCV(KNeighborsClassifier(), args.kNN, cv=cv, n_jobs=args.cpu, scoring=scoring_metrics, refit='f1')
+        gs = GridSearchCV(KNeighborsClassifier(), k_params, cv=5, n_jobs=args.cpu, scoring=scoring_metrics, refit='f1')
         start_time = time.time()
         gs.fit(X_train, y_train)
         end_time = time.time()
@@ -887,11 +901,6 @@ def naive_bayes():
     """
     x_train, x_dev, y_train, y_dev = divide_data()
 
-    params = args.parameters if hasattr(args, 'parameters') else {}
-    param_grid = {
-        'alpha': params.get('alpha', [1.0]),
-    }
-
     # Configuramos las métricas de evaluación
     fscore_param = getattr(args, 'f_score', 'macro').lower()
     scoring_metrics = {
@@ -901,18 +910,26 @@ def naive_bayes():
     }
 
     print("Entrenando Naive Bayes y buscando los mejores parámetros...")
-    start_time = time.time()
 
-    nb = MultinomialNB()
-    gs = GridSearchCV(nb, param_grid, cv=5, n_jobs=-1, scoring=scoring_metrics, refit='f1')
-    gs.fit(x_train, y_train)
-
-    end_time = time.time()
+    with tqdm(total=100, desc='Procesando random forest', unit='iter', leave=True) as pbar:
+        gs = GridSearchCV(MultinomialNB(), args.naive_bayes, cv=5, n_jobs=args.cpu, scoring=scoring_metrics, refit='f1')
+        start_time = time.time()
+        gs.fit(x_train, y_train)
+        end_time = time.time()
+        for i in range(100):
+            time.sleep(random.uniform(0.06, 0.15))  # Esperamos un tiempo aleatorio
+            pbar.update(random.random() * 2)  # Actualizamos la barra con un valor aleatorio
+        pbar.n = 100
+        pbar.last_print_n = 100
+        pbar.update(0)
 
     execution_time = end_time - start_time
     print("Tiempo de ejecución:" + Fore.MAGENTA + f" {execution_time} " + Fore.RESET + "segundos")
 
+    # Mostramos los resultados
     mostrar_resultados(gs, x_dev, y_dev)
+
+    # Guardamos el modelo utilizando pickle
     save_model(gs)
 
 # ===========================

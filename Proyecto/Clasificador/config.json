@@ -1,42 +1,44 @@
 {
-    "data_file": "archivo.csv",
-    "algorithm": "kNN/decision_tree/random_forest/naive_bayes",
-    "prediction": "columna_a_predecir",
-    "f_score": "macro*/micro/weighted",
+    "data_file": "../Datos/Spotify_12345.csv",
+    "sep": ";",
+    "algorithm": "kNN",
+    "prediction": "score",
+    "f_score": "macro",
     "model": null,
     "preprocessing": {
-        "sampling": "oversampling/undersampling",
-        "scaler": "minmax/maxabs/zscore*",
-        "unique_category_threshold": value,
-        "text_process": "tf-idf/bow",
-        "language": "language",
-        "impute_num": "mean/mode/median*/constant/delete",
-        "impute_cat": "mode*/constant/delete"
+        "sampling": "SMOTE",
+        "scaler": "zscore",
+        "unique_category_threshold": 150000,
+        "text_process": "tf-idf",
+        "language": "english",
+        "impute_num": "median",
+        "impute_cat": "mode"
     },
     "kNN": {
         "k": {
-            "kValues" : [value1, value2, ..., valueN],
-            "valueMin": valueMin,
-            "valueMax": valueMax,
-            "step": valueStep
+            "kValues" : [],
+            "valueMin": 1,
+            "valueMax": 9,
+            "step": 2
         },
-        "weights": ["uniform"*,"distance"],
-        "p": [1,2*]
+        "weights": ["uniform","distance"],
+        "p": [1,2]
     },
     "decision_tree": {
-        "max_depth": [value1, value2, ..., valueN],
-        "min_samples_split": [value1, value2, ..., valueN],
-        "min_samples_leaf": [value1, value2, ..., valueN],
-        "criterion": ["gini", "entropy"]*
+        "max_depth": [],
+        "min_samples_split": [],
+        "min_samples_leaf": [],
+        "criterion": ["gini", "entropy"]
     },
     "random_forest": {
-        "n_estimators": [value1, value2, ..., valueN],
-        "max_depth": [value1, value2, ..., valueN],
-        "min_samples_split": [value1, value2, ..., valueN],
-        "min_samples_leaf": [value1, value2, ..., valueN],
-        "criterion": ["gini", "entropy"]*
+        "n_estimators": [],
+        "max_depth": [],
+        "min_samples_split": [],
+        "min_samples_leaf": [],
+        "criterion": ["gini", "entropy"]
     },
     "naive_bayes": {
-        "alpha": [value1, value2, ..., valueN] [1.0*]
+        "alpha": [1e-7,1e-3,0.1,0.25,0.5,0.75,1.0],
+        "fit_prior": [true, false]
     }
 }
