@@ -12,7 +12,6 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import RegexpTokenizer
 from nltk.stem.wordnet import WordNetLemmatizer
-from sklearn.feature_extraction.text import TfidfVectorizer
 import gensim
 import gensim.corpora as corpora
 from gensim.models import LdaModel, CoherenceModel
