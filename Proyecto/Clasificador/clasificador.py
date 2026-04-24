@@ -47,6 +47,7 @@ from tqdm import tqdm
 
 global data
 global package
+global model
 package = {}
 
 # ===========================
@@ -110,37 +111,68 @@ def load_data(file):
 # ===========================
 
 def select_features():
+    """
+    Separa las características del conjunto de datos en características numéricas, de texto y categóricas.
+
+    Returns:
+        numerical_feature (DataFrame): DataFrame que contiene las características numéricas.
+        text_feature (DataFrame): DataFrame que contiene las características de texto.
+        categorical_feature (DataFrame): DataFrame que contiene las características categóricas.
+    """
+    global data
     try:
-        # 1. Identificar numéricas (excluyendo la predicción)
-        numerical_feature = data.select_dtypes(include=['int64', 'float64'])
-        if args.prediction in numerical_feature.columns:
-            numerical_feature = numerical_feature.drop(columns=[args.prediction])
+        if args.mode == "train":
+            # 1. Identificar numéricas
+            numerical_feature = data.select_dtypes(include=['int64', 'float64'])
 
-        # 2. Identificar categóricas (excluyendo la predicción)
-        unique_threshold = args.preprocessing.get("unique_category_threshold", 20)
-        categorical_feature = data.select_dtypes(include='object')
-        # EXCLUIR PREDICCIÓN AQUÍ:
-        if args.prediction in categorical_feature.columns:
-            categorical_feature = categorical_feature.drop(columns=[args.prediction])
+            # 2. Identificar categóricas
+            unique_threshold = args.preprocessing.get("unique_category_threshold", 20)
+            categorical_feature = data.select_dtypes(include='object')
+            categorical_feature = categorical_feature.loc[:, categorical_feature.nunique() <= unique_threshold]
 
-        categorical_feature = categorical_feature.loc[:, categorical_feature.nunique() <= unique_threshold]
+            # 3. Identificar texto
+            all_objects = data.select_dtypes(include='object')
+            text_feature = all_objects.drop(columns=categorical_feature.columns)
 
-        # 3. Identificar texto (excluyendo categóricas y la predicción)
-        all_objects = data.select_dtypes(include='object')
-        text_feature = all_objects.drop(columns=categorical_feature.columns)
-        # EXCLUIR PREDICCIÓN AQUÍ TAMBIÉN:
-        if args.prediction in text_feature.columns:
-            text_feature = text_feature.drop(columns=[args.prediction])
+            if args.prediction in numerical_feature.columns:
+                numerical_feature = numerical_feature.drop(columns=[args.prediction])
 
-        print(Fore.GREEN + "Datos separados con éxito (Predicción excluida de X)" + Fore.RESET)
-        return numerical_feature, text_feature, categorical_feature
+            if args.prediction in categorical_feature.columns:
+                categorical_feature = categorical_feature.drop(columns=[args.prediction])
+
+            if args.prediction in text_feature.columns:
+                text_feature = text_feature.drop(columns=[args.prediction])
+
+            print(Fore.GREEN + "Datos separados con éxito (Predicción excluida de X)" + Fore.RESET)
+            return numerical_feature, text_feature, categorical_feature
+        elif args.mode == "test":
+            # Eliminar la columna que quieres predecir para que no entre al modelo
+            if args.prediction in data.columns:
+                data = data.drop(columns=[args.prediction])
+            # Numerical features
+            numerical_feature = data.select_dtypes(include=['int64', 'float64'])  # Columnas numéricas
+            if args.prediction in numerical_feature.columns:
+                numerical_feature = numerical_feature.drop(columns=[args.prediction])
+
+            unique_threshold = model['unique_category_threshold']
+
+            # Categorical features
+            categorical_feature = data.select_dtypes(include='object')
+            categorical_feature = categorical_feature.loc[:, categorical_feature.nunique() <= unique_threshold]
+
+            # Text features
+            text_feature = data.select_dtypes(include='object').drop(columns=categorical_feature.columns)
+
+            print(Fore.GREEN + "Datos separados con éxito" + Fore.RESET)
+
+            return numerical_feature, text_feature, categorical_feature
     except Exception as e:
         print(Fore.RED + "Error al separar los datos" + Fore.RESET)
         print(e)
         sys.exit(1)
 
 
-def process_missing_values(numerical_feature, categorical_feature):
+def process_missing_values(numerical_feature, categorical_feature, text_feature):
     """
     Procesa los valores faltantes en los datos según la estrategia especificada en los argumentos.
 
@@ -155,70 +187,104 @@ def process_missing_values(numerical_feature, categorical_feature):
         None
     """
     global data
-    try:
-        # Leemos la estrategia del JSON (si no la pones, usa mediana y moda por defecto)
-        impute_num = args.preprocessing.get("impute_num", "median").lower()
-        impute_cat = args.preprocessing.get("impute_cat", "mode").lower()
-        package['impute_num'] = impute_num
-        package['impute_cat'] = impute_cat
-        
-        # Numéricas
-        for col in numerical_feature.columns:
-            if col in data.columns and data[col].isnull().any():
-                data[col] = pd.to_numeric(data[col], errors="coerce")
+    if args.mode == "train":
+        try:
+            # Leemos la estrategia del JSON (si no la pones, usa mediana y moda por defecto)
+            impute_num = args.preprocessing.get("impute_num", "median").lower()
+            impute_cat = args.preprocessing.get("impute_cat", "mode").lower()
+            package['impute_num'] = impute_num
+            package['impute_cat'] = impute_cat
 
-        if impute_num == "constant":
-            while True:
-                try:
-                    package['impute_num_const'] = int(
-                        input("¿Qué constante quieres utilizar para la imputación de valores numéricos?: "))
-                    break  # sale del bucle si es válido
-                except ValueError:
-                    print("Por favor, introduce un número entero válido.")
-
-        if impute_num == "delete":
-            data = data.dropna(subset=numerical_feature.columns)
-        else:
+            # Numéricas
             for col in numerical_feature.columns:
                 if col in data.columns and data[col].isnull().any():
-                    if impute_num == "mean":
-                        data[col] = data[col].fillna(data[col].mean())
-                    elif impute_num == "mode":
-                        data[col] = data[col].fillna(data[col].mode()[0])
-                    elif impute_num == "constant":
-                        data[col] = data[col].fillna(package['impute_num_const'])
-                    else: # Por defecto: mediana
-                        data[col] = data[col].fillna(data[col].median())
+                    data[col] = pd.to_numeric(data[col], errors="coerce")
 
-        # Categóricas
-        if impute_cat == "constant":
-            package['impute_cat_const'] = str(
-                input("¿Qué constante quieres utilizar para la imputación de valores categoriales?: "))
+            if impute_num == "constant":
+                while True:
+                    try:
+                        package['impute_num_const'] = int(input("¿Qué constante quieres utilizar para la imputación de valores numéricos?: "))
+                        break
+                    except ValueError:
+                        print("Por favor, introduce un número entero válido.")
 
-        if impute_cat == "delete":
-            data = data.dropna(subset=categorical_feature.columns)
-        else:
-            for col in categorical_feature.columns:
+            if impute_num == "delete":
+                data = data.dropna(subset=numerical_feature.columns)
+            else:
+                for col in numerical_feature.columns:
+                    if col in data.columns and data[col].isnull().any():
+                        if impute_num == "mean":
+                            data[col] = data[col].fillna(data[col].mean())
+                        elif impute_num == "mode":
+                            data[col] = data[col].fillna(data[col].mode()[0])
+                        elif impute_num == "constant":
+                            data[col] = data[col].fillna(package['impute_num_const'])
+                        else:
+                            data[col] = data[col].fillna(data[col].median())
+            # Categóricas
+            if impute_cat == "constant":
+                package['impute_cat_const'] = str(
+                    input("¿Qué constante quieres utilizar para la imputación de valores categoriales?: "))
+            if impute_cat == "delete":
+                data = data.dropna(subset=categorical_feature.columns)
+            else:
+                for col in categorical_feature.columns:
+                    if col in data.columns and data[col].isnull().any():
+                        if impute_cat == "constant":
+                            data[col] = data[col].fillna(package['impute_cat_const'])
+                        else: # Por defecto: moda
+                            moda = data[col].mode(dropna=True)
+                            fill_value = moda.iloc[0] if not moda.empty else "Desconocido"
+                            data[col] = data[col].fillna(fill_value)
+
+            print(Fore.GREEN + "Valores faltantes procesados con éxito" + Fore.RESET)
+        except Exception as e:
+            print(Fore.RED + "Error al procesar valores faltantes" + Fore.RESET)
+            print(e)
+            sys.exit(1)
+    elif args.mode == "test":
+        try:
+            # Leemos la estrategia del JSON (si no la pones, usa mediana y moda por defecto)
+            impute_num = model['impute_num']
+            impute_cat = model['impute_cat']
+
+            # Numéricas
+            for col in numerical_feature.columns:
                 if col in data.columns and data[col].isnull().any():
-                    if impute_cat == "constant":
-                        data[col] = data[col].fillna(package['impute_cat_const'])
-                    else: # Por defecto: moda
-                        moda = data[col].mode(dropna=True)
-                        fill_value = moda.iloc[0] if not moda.empty else "Desconocido"
-                        data[col] = data[col].fillna(fill_value)
+                    data[col] = pd.to_numeric(data[col], errors="coerce")
 
-        # Resto de columnas object/texto
-        object_cols = data.select_dtypes(include=["object"]).columns.difference(categorical_feature.columns)
+            if impute_num == "delete":
+                data = data.dropna(subset=numerical_feature.columns)
+            else:
+                for col in numerical_feature.columns:
+                    if col in data.columns and data[col].isnull().any():
+                        if impute_num == "mean":
+                            data[col] = data[col].fillna(data[col].mean())
+                        elif impute_num == "mode":
+                            data[col] = data[col].fillna(data[col].mode()[0])
+                        elif impute_num == "constant":
+                            data[col] = data[col].fillna(model['impute_num_const'])
+                        else:  # Por defecto: mediana
+                            data[col] = data[col].fillna(data[col].median())
 
-        for col in object_cols:
-            if data[col].isnull().any():
-                data[col] = data[col].fillna("")
+            if impute_cat == "delete":
+                data = data.dropna(subset=categorical_feature.columns)
+            else:
+                for col in categorical_feature.columns:
+                    if col in data.columns and data[col].isnull().any():
+                        if impute_cat == "constant":
+                            data[col] = data[col].fillna(package['impute_cat_const'])
+                        else:  # Por defecto: moda
+                            moda = data[col].mode(dropna=True)
+                            fill_value = moda.iloc[0] if not moda.empty else "Desconocido"
+                            data[col] = data[col].fillna(fill_value)
 
-        print(Fore.GREEN + "Valores faltantes procesados con éxito" + Fore.RESET)
-    except Exception as e:
-        print(Fore.RED + "Error al procesar valores faltantes" + Fore.RESET)
-        print(e)
-        sys.exit(1)
+            print(Fore.GREEN + "Valores faltantes procesados con éxito" + Fore.RESET)
+        except Exception as e:
+            print(Fore.RED + "Error al procesar valores faltantes" + Fore.RESET)
+            print(e)
+            sys.exit(1)
+
 
 def reescaler(numerical_feature):
     """
@@ -235,38 +301,55 @@ def reescaler(numerical_feature):
 
     """
     global data
-    try:
-        if numerical_feature.columns.size > 0:
-            scaler_name = args.preprocessing.get("scaler", "standard").lower()
+    if args.mode == "train":
+        try:
+            if numerical_feature.columns.size > 0:
+                scaler_name = args.preprocessing.get("scaler", "standard").lower()
 
-            if scaler_name == "minmax":
-                scaler = MinMaxScaler()
-                data[numerical_feature.columns] = scaler.fit_transform(data[numerical_feature.columns])
-                print(Fore.GREEN + f"Datos reescalados con éxito utilizando {scaler_name}" + Fore.RESET)
-            elif scaler_name == "maxabs":
-                scaler = MaxAbsScaler()
-                data[numerical_feature.columns] = scaler.fit_transform(data[numerical_feature.columns])
-                print(Fore.GREEN + f"Datos reescalados con éxito utilizando {scaler_name}" + Fore.RESET)
-            elif scaler_name == "zscore":
-                scaler = StandardScaler()
-                data[numerical_feature.columns] = scaler.fit_transform(data[numerical_feature.columns])
-                print(Fore.GREEN + f"Datos reescalados con éxito utilizando {scaler_name}" + Fore.RESET)
-            elif scaler_name == "normalizer":
-                scaler = Normalizer()
-                data[numerical_feature.columns] = scaler.fit_transform(data[numerical_feature.columns])
-                print(Fore.GREEN + f"Datos reescalados con éxito utilizando {scaler_name}" + Fore.RESET)
+                if scaler_name == "minmax":
+                    scaler = MinMaxScaler()
+                    data[numerical_feature.columns] = scaler.fit_transform(data[numerical_feature.columns])
+                    print(Fore.GREEN + f"Datos reescalados con éxito utilizando {scaler_name}" + Fore.RESET)
+                elif scaler_name == "maxabs":
+                    scaler = MaxAbsScaler()
+                    data[numerical_feature.columns] = scaler.fit_transform(data[numerical_feature.columns])
+                    print(Fore.GREEN + f"Datos reescalados con éxito utilizando {scaler_name}" + Fore.RESET)
+                elif scaler_name == "zscore":
+                    scaler = StandardScaler()
+                    data[numerical_feature.columns] = scaler.fit_transform(data[numerical_feature.columns])
+                    print(Fore.GREEN + f"Datos reescalados con éxito utilizando {scaler_name}" + Fore.RESET)
+                elif scaler_name == "normalizer":
+                    scaler = Normalizer()
+                    data[numerical_feature.columns] = scaler.fit_transform(data[numerical_feature.columns])
+                    print(Fore.GREEN + f"Datos reescalados con éxito utilizando {scaler_name}" + Fore.RESET)
+                else:
+                    scaler = None
+                    print(Fore.YELLOW+"No se están escalando los datos"+Fore.RESET)
+
+                global package
+                package['scaler'] = scaler
+
             else:
-                scaler = None
-                print(Fore.YELLOW+"No se están escalando los datos"+Fore.RESET)
-            
-            global package
-            package['scaler'] = scaler
+                print(Fore.YELLOW + "No se han encontrado columnas numéricas para reescalar" + Fore.RESET)
+                return
 
-        else:
-            print(Fore.YELLOW + "No se han encontrado columnas numéricas para reescalar" + Fore.RESET)
-            return
-            
-    except Exception as e:
+        except Exception as e:
+                print(Fore.RED + "Error al reescalar los datos" + Fore.RESET)
+                print(e)
+                sys.exit(1)
+    elif args.mode == "test":
+        try:
+            if numerical_feature.columns.size == 0:
+                print(Fore.YELLOW + "No se han encontrado columnas numéricas para reescalar" + Fore.RESET)
+                return
+
+            scaler = package['scaler']
+
+            cols = [col for col in numerical_feature.columns if col in data.columns]
+            if cols:
+                data[cols] = scaler.transform(data[cols])
+                print(Fore.GREEN + "Datos reescalados con éxito" + Fore.RESET)
+        except Exception as e:
             print(Fore.RED + "Error al reescalar los datos" + Fore.RESET)
             print(e)
             sys.exit(1)
@@ -289,26 +372,25 @@ def cat2num(categorical_feature):
             if not cols:
                 return
 
-            encoder = OneHotEncoder(
-                handle_unknown='ignore',
-                sparse_output=False
-            )
+            if args.mode == "train":
+                encoder = LabelEncoder()
+                for col in categorical_feature.columns:
+                    data[col] = encoder.fit_transform(data[col])
 
-            encoded_data = encoder.fit_transform(data[cols])
+            elif args.mode == "test":
+                # Recuperamos el encoder que guardamos en el entrenamiento
+                encoder = model['categorical_encoder']
+                for col in categorical_feature.columns:
+                    data[col] = encoder.transform(data[col])
 
-            # Crear DataFrame con nombres correctos
-            encoded_df = pd.DataFrame(
-                encoded_data,
-                columns=encoder.get_feature_names_out(cols),
-                index=data.index
-            )
-
-            data = pd.concat([data.drop(columns=cols), encoded_df], axis=1)
+            else:
+                print(Fore.RED + f"Modo no soportado." + Fore.RESET)
+                sys.exit(1)
 
             # GUARDAMOS el objeto en el package para el Test
             package['categorical_encoder'] = encoder
 
-            print(Fore.GREEN + "OneHotEncoder entrenado y guardado" + Fore.RESET)
+            print(Fore.GREEN+"Datos categóricos pasados a numéricos con éxito"+Fore.RESET)
         else:
             print(Fore.YELLOW + "No se han encontrado columnas categóricas para convertir" + Fore.RESET)
             return
@@ -328,10 +410,10 @@ def simplify_text(text_feature):
     None
     """
     global data
+
     try:
         if text_feature.columns.size > 0:
             for col in text_feature.columns:
-
                 # Minúsculas
                 data[col] = data[col].apply(lambda x: x.lower())
 
@@ -340,13 +422,13 @@ def simplify_text(text_feature):
 
                 # Borrar numeros
                 data[col] = data[col].apply(lambda x: [word for word in x if not word.isnumeric()])
-                
+
                 # Borrar stopwords
                 data[col] = data[col].apply(lambda x: [word for word in x if word not in stopwords.words(args.preprocessing.get("language", "english"))])
 
                 # Lemmatizar
                 data[col] = data[col].apply(lambda x: [WordNetLemmatizer().lemmatize(word) for word in x])
-                
+
                 # Borrar caracteres especiales
                 data[col] = data[col].apply(lambda x: ''.join(c for c in unicodedata.normalize('NFD', ' '.join(x)) if unicodedata.category(c) != 'Mn'))
 
@@ -369,99 +451,143 @@ def process_text(text_feature):
 
     """
     global data
-    try:
-        if text_feature.columns.size > 0:
-            global package
-            if args.preprocessing["text_process"] == "tf-idf":
-                vectorizer = TfidfVectorizer()
+    if args.mode == "train":
+        try:
+            if text_feature.columns.size > 0:
+                global package
+                if args.preprocessing["text_process"] == "tf-idf":
+                    vectorizer = TfidfVectorizer()
+                    text_data = data[text_feature.columns].apply(lambda x: ' '.join(x.astype(str)), axis=1)
+                    tfidf_matrix = vectorizer.fit_transform(text_data)
+                    text_features_df = pd.DataFrame(tfidf_matrix.toarray(),
+                                                    columns=vectorizer.get_feature_names_out())
+                    data = pd.concat([data, text_features_df], axis=1)
+                    data.drop(text_feature.columns, axis=1, inplace=True)
+                    print(Fore.GREEN + "Texto tratado con éxito usando TF-IDF" + Fore.RESET)
+                    package['vectorizer'] = vectorizer
+                elif args.preprocessing["text_process"] == "bow":
+                    vectorizer = CountVectorizer()
+                    text_data = data[text_feature.columns].apply(lambda x: ' '.join(x.astype(str)), axis=1)
+                    bow_matrix = vectorizer.fit_transform(text_data)
+                    text_features_df = pd.DataFrame(bow_matrix.toarray(), columns=vectorizer.get_feature_names_out())
+                    # Unimos las nuevas columnas numéricas
+                    data = pd.concat([data, text_features_df], axis=1)
+                    # ELIMINAMOS las columnas de texto originales para que no den error
+                    data.drop(text_feature.columns, axis=1, inplace=True)
+                    print(Fore.GREEN + "Texto tratado con éxito usando BOW" + Fore.RESET)
+                    package['vectorizer'] = vectorizer
+                else:
+                    print(Fore.YELLOW + "No se están tratando los textos" + Fore.RESET)
+            else:
+                print(Fore.YELLOW + "No se han encontrado columnas de texto a procesar" + Fore.RESET)
+        except Exception as e:
+            print(Fore.RED + "Error al tratar el texto" + Fore.RESET)
+            print(e)
+            sys.exit(1)
+    elif args.mode == "test":
+        try:
+            if text_feature.columns.size > 0:
+                vectorizer = model['vectorizer']
                 text_data = data[text_feature.columns].apply(lambda x: ' '.join(x.astype(str)), axis=1)
-                tfidf_matrix = vectorizer.fit_transform(text_data)
-                text_features_df = pd.DataFrame(tfidf_matrix.toarray(),
+                matrix = vectorizer.transform(text_data)
+                text_features_df = pd.DataFrame(matrix.toarray(),
                                                 columns=vectorizer.get_feature_names_out())
                 data = pd.concat([data, text_features_df], axis=1)
                 data.drop(text_feature.columns, axis=1, inplace=True)
-                print(Fore.GREEN + "Texto tratado con éxito usando TF-IDF" + Fore.RESET)
-                package['vectorizer'] = vectorizer
-            elif args.preprocessing["text_process"] == "bow":
-                vectorizer = CountVectorizer()
-                text_data = data[text_feature.columns].apply(lambda x: ' '.join(x.astype(str)), axis=1)
-                bow_matrix = vectorizer.fit_transform(text_data)
-                text_features_df = pd.DataFrame(bow_matrix.toarray(), columns=vectorizer.get_feature_names_out())
-                # Unimos las nuevas columnas numéricas
-                data = pd.concat([data, text_features_df], axis=1)
-                # ELIMINAMOS las columnas de texto originales para que no den error
-                data.drop(text_feature.columns, axis=1, inplace=True)
-                print(Fore.GREEN + "Texto tratado con éxito usando BOW" + Fore.RESET)
-                package['vectorizer'] = vectorizer
+                print(Fore.GREEN + "Texto tratado con éxito" + Fore.RESET)
             else:
-                print(Fore.YELLOW + "No se están tratando los textos" + Fore.RESET)
-        else:
-            print(Fore.YELLOW + "No se han encontrado columnas de texto a procesar" + Fore.RESET)
-    except Exception as e:
-        print(Fore.RED + "Error al tratar el texto" + Fore.RESET)
-        print(e)
-        sys.exit(1)
+                print(Fore.YELLOW + "No se han encontrado columnas de texto a procesar" + Fore.RESET)
+        except Exception as e:
+            print(Fore.RED + "Error al tratar el texto" + Fore.RESET)
+            print(e)
+            sys.exit(1)
 
-def sampling(X_train, y_train, desbalanceado):
+
+def sampling():
     """
-    Aplica técnicas de balanceo de clases (Oversampling o Undersampling)
-    sobre el conjunto de datos global para evitar sesgos en el modelo.
-    El tipo de balanceo se lee de los argumentos del JSON.
+    Realiza oversampling o undersampling en los datos según la estrategia especificada en args.preprocessing["sampling"].
+
+    Args:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        Exception: Si ocurre algún error al realizar el oversampling o undersampling.
+    """
+
+    global data
+    if args.mode != "test":
+        try:
+            if args.preprocessing["sampling"] == "oversampling":
+                ros = RandomOverSampler(sampling_strategy='minority', random_state=42)
+                x = data.drop(columns=[args.prediction])
+                y = data[args.prediction]
+                x, y = ros.fit_resample(x, y)
+                x = pd.DataFrame(x, columns=data.drop(columns=[args.prediction]).columns)
+                y = pd.Series(y, name=args.prediction)
+                data = pd.concat([x, y], axis=1)
+                print(Fore.GREEN + "Oversampling realizado con éxito" + Fore.RESET)
+            elif args.preprocessing["sampling"] == "undersampling":
+                rus = RandomUnderSampler(sampling_strategy='majority', random_state=42)
+                x = data.drop(columns=[args.prediction])
+                y = data[args.prediction]
+                x, y = rus.fit_resample(x, y)
+                x = pd.DataFrame(x, columns=data.drop(columns=[args.prediction]).columns)
+                y = pd.Series(y, name=args.prediction)
+                data = pd.concat([x, y], axis=1)
+                print(Fore.GREEN + "Undersampling realizado con éxito" + Fore.RESET)
+            elif args.preprocessing["sampling"].lower() == "smote":
+                sm = SMOTE(sampling_strategy='auto', random_state=42)
+                x = data.drop(columns=[args.prediction])
+                y = data[args.prediction]
+                x, y = sm.fit_resample(x, y)
+                x = pd.DataFrame(x, columns=data.drop(columns=[args.prediction]).columns)
+                y = pd.Series(y, name=args.prediction)
+                data = pd.concat([x, y], axis=1)
+                print(Fore.GREEN + "SMOTE realizado con éxito" + Fore.RESET)
+            else:
+                print(Fore.YELLOW + "No se están realizando oversampling, undersampling o SMOTE" + Fore.RESET)
+        except Exception as e:
+            print(Fore.RED + "Error al realizar oversampling, undersampling o SMOTE" + Fore.RESET)
+            print(e)
+            sys.exit(1)
+
+    else:
+        print(Fore.GREEN + "No se realiza oversampling, undersampling o SMOTE en modo test" + Fore.RESET)
+
+def drop_features():
+    """
+    Elimina las columnas especificadas en el argumento 'drop_features' del dataset global 'data'.
+
+    Si una columna no existe en el dataset, se muestra un mensaje de advertencia en color amarillo.
+    Si el argumento 'debug' está activado, se muestra un mensaje en color magenta indicando la columna eliminada.
+    Al finalizar, se muestra un mensaje en color verde indicando que las columnas han sido eliminadas.
+
+    En caso de producirse un error al eliminar las columnas, se muestra un mensaje de error en color rojo y se finaliza el programa.
 
     Parámetros:
-    Ninguno (utiliza las variables globales 'data' y 'args').
+    - Ninguno
 
     Retorna:
-    None (modifica el DataFrame global 'data' directamente).
+    - Ninguno
     """
     global data
-    sampling_type = args.preprocessing.get("sampling", "none")
-
-    if sampling_type == "none":
-        return X_train, y_train  # Siempre devolver los datos
-
     try:
-        answer = "y"
-        if not desbalanceado:
-            answer = input(f"Los datos están balanceados, has indicado que quieres realizar {sampling_type}. ¿Quieres continuar aún así? [y/N]?")
-
-        if answer.lower() == "y":
-            if sampling_type == "oversampling":
-                sampler = RandomOverSampler(sampling_strategy='minority', random_state=42)
-                x = data.drop(columns=[args.prediction])
-                y = data[args.prediction]
-                x, y = sampler.fit_resample(x, y)
-                x = pd.DataFrame(x, columns=data.drop(columns=[args.prediction]).columns)
-                y = pd.Series(y, name=args.prediction)
-                data = pd.concat([x, y], axis=1)
-            elif sampling_type == "undersampling":
-                sampler = RandomUnderSampler(sampling_strategy='majority', random_state=42)
-                x = data.drop(columns=[args.prediction])
-                y = data[args.prediction]
-                x, y = sampler.fit_resample(x, y)
-                x = pd.DataFrame(x, columns=data.drop(columns=[args.prediction]).columns)
-                y = pd.Series(y, name=args.prediction)
-                data = pd.concat([x, y], axis=1)
-            elif sampling_type == "smote":
-                sampler = SMOTE(sampling_strategy='auto', random_state=42)
-                x = data.drop(columns=[args.prediction])
-                y = data[args.prediction]
-                x, y = sampler.fit_resample(x, y)
-                x = pd.DataFrame(x, columns=data.drop(columns=[args.prediction]).columns)
-                y = pd.Series(y, name=args.prediction)
-                data = pd.concat([x, y], axis=1) 
-            else:
-                print(Fore.YELLOW + f"Sampling no aplicado, algo salió mal" + Fore.RESET)
-                return X_train, y_train
-            X_res, y_res = sampler.fit_resample(X_train, y_train)
-            print(Fore.GREEN + f"Sampling ({sampling_type}) aplicado" + Fore.RESET)
-            return X_res, y_res
+        if args.preprocessing["drop_features"] != []:
+            for column in args.preprocessing["drop_features"]:
+                if column not in data.columns:
+                    print(Fore.YELLOW+f"La columna {column} no existe en el dataset"+Fore.RESET)
+                else:
+                    data.drop(column, axis=1, inplace=True)
+            print(Fore.GREEN+f"Columnas eliminadas"+Fore.RESET)
         else:
-            print(Fore.YELLOW + f"Sampling no aplicado." + Fore.RESET)
-            return X_train, y_train
+            print(Fore.YELLOW+"No se han especificado columnas a eliminar"+Fore.RESET)
     except Exception as e:
-        print(Fore.YELLOW + "No se pudo aplicar sampling: " + str(e) + Fore.RESET)
-        return X_train, y_train
+        print(Fore.RED+"Error al eliminar columnas"+Fore.RESET)
+        print(e)
+        sys.exit(1)
 
 def preprocesar_datos():
     """
@@ -486,17 +612,29 @@ def preprocesar_datos():
     # Silencia los avisos de depuración de Pandas
     warnings.filterwarnings("ignore", category=Pandas4Warning)
 
-    numerical_feature, text_feature, categorical_feature = select_features() # dividir los datos con los que trabajamos en numéricos, categóricos y de texto
+    # Eliminamos columnas no necesarias
+    drop_features()
 
+    # Separamos los datos por tipos
+    numerical_feature, text_feature, categorical_feature = select_features()
+
+    # Simplificamos el texto
     simplify_text(text_feature)
 
+    # Tratamos missing values
+    process_missing_values(numerical_feature, categorical_feature, text_feature)
+
+    # Pasar los datos a categoriales a numéricos
     cat2num(categorical_feature)
 
-    process_missing_values(numerical_feature, categorical_feature)
-
+    # Reescalamos los datos numéricos
     reescaler(numerical_feature)
 
+    # Tratamos el texto
     process_text(text_feature)
+
+    # Balanceo
+    sampling()
 
     return data
 
@@ -569,14 +707,28 @@ def calculate_classification_report(y_true, y_pred):
 # =========================================
 
 def divide_data():
-    global data
+    """
+    Función que divide los datos en conjuntos de entrenamiento y desarrollo.
+
+    Parámetros:
+    - data: DataFrame que contiene los datos.
+    - args: Objeto que contiene los argumentos necesarios para la división de datos.
+
+    Retorna:
+    - x_train: DataFrame con las características de entrenamiento.
+    - x_dev: DataFrame con las características de desarrollo.
+    - y_train: Serie con las etiquetas de entrenamiento.
+    - y_dev: Serie con las etiquetas de desarrollo.
+    """
+
     try:
+
         if args.prediction not in data.columns:
             raise ValueError(f"La columna objetivo '{args.prediction}' no existe en el dataset.")
 
-        # Se separa la columna objetivo (y) del resto de características (x)
-        y = data[args.prediction].copy()
-        X = data.drop(columns=[args.prediction]).copy()
+        # Sacamos la columna a predecir
+        y = data[args.prediction]
+        x = data.drop(columns=[args.prediction])
 
         # Transformamos la columna objetivo a numérica si no lo es.
         if not is_numeric_dtype(y):
@@ -584,18 +736,15 @@ def divide_data():
             y = le.fit_transform(y.astype(str))
             package['label_encoder'] = le
 
-        # Comprobar si está desbalanceado
-        proportions = pd.Series(y).value_counts(normalize=True)
-        min_prop = proportions.min()
-        desbalanceado = min_prop < 0.10
+        # Dividimos los datos en entrenamiento y dev
+        x_train, x_dev, y_train, y_dev = train_test_split(x, y, test_size=0.15, random_state=42)
+        return x_train, x_dev, y_train, y_dev
 
-        # Dividimos los datos en entrenamiento y desarrollo (80% - 20%) de forma estratificada para mantener la proporción de clases.
-        X_train, X_dev, y_train, y_dev = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-        X_train, y_train = sampling(X_train, y_train, desbalanceado)
-        return X_train, X_dev, y_train, y_dev
     except Exception as e:
         print(Fore.RED + "Error al dividir datos: " + str(e) + Fore.RESET)
         sys.exit(1)
+
+
 
 def save_model(gs):
     """
@@ -932,6 +1081,65 @@ def naive_bayes():
     # Guardamos el modelo utilizando pickle
     save_model(gs)
 
+# =====================================
+# Funciones para predecir con un modelo
+# =====================================
+
+def load_model():
+    """
+    Carga el modelo desde el archivo 'output/modelo.pkl' y lo devuelve.
+
+    Returns:
+        model: El modelo cargado desde el archivo 'output/modelo.pkl'.
+
+    Raises:
+        Exception: Si ocurre un error al cargar el modelo.
+    """
+    try:
+        with open(args.model, 'rb') as file:
+            global model
+            model = pickle.load(file)
+            print(Fore.GREEN + "Modelo cargado con éxito" + Fore.RESET)
+            return model
+    except Exception as e:
+        print(Fore.RED + "Error al cargar el modelo" + Fore.RESET)
+        print(e)
+        sys.exit(1)
+
+def predict():
+    """
+    Realiza una predicción utilizando el modelo entrenado y guarda los resultados en un archivo CSV.
+
+    Parámetros:
+        Ninguno
+
+    Retorna:
+        Ninguno
+    """
+    """
+        Realiza una predicción utilizando el modelo entrenado y guarda los resultados en un archivo CSV.
+
+        Parámetros:
+            Ninguno
+
+        Retorna:
+            Ninguno
+        """
+    global data
+
+    # Predecimos
+    prediction = model['model'].predict(data)
+
+    if 'label_encoder' in model:
+        prediction_labels = model['label_encoder'].inverse_transform(prediction)
+    else:
+        print(Fore.YELLOW + "Aviso: No se encontró label_encoder, usando números." + Fore.RESET)
+        prediction_labels = prediction
+
+    # Añadimos la prediccion al dataframe data
+    data = pd.concat([data, pd.DataFrame(prediction_labels, columns=[f"{args.prediction}_PRED"], index=data.index)], axis=1)
+
+
 # ===========================
 # Configuración inicial
 # ===========================
@@ -942,41 +1150,78 @@ def config():
     global data
     data = load_data(args.data_file)
 
-    # Preprocesamos los datos
-    print("\n- Preprocesando datos...")
-    preprocesar_datos()
+    if args.mode == "train":
 
-    if args.algorithm == "kNN":
+        # Preprocesamos los datos
+        print("\n- Preprocesando datos...")
+        preprocesar_datos()
+
+        if args.algorithm == "kNN":
+            try:
+                kNN()
+                print(Fore.GREEN + "Algoritmo kNN ejecutado con éxito" + Fore.RESET)
+                sys.exit(0)
+            except Exception as e:
+                print(e)
+        elif args.algorithm == "decision_tree":
+            try:
+                decision_tree()
+                print(Fore.GREEN + "Algoritmo árbol de decisión ejecutado con éxito" + Fore.RESET)
+                sys.exit(0)
+            except Exception as e:
+                print(e)
+        elif args.algorithm == "random_forest":
+            try:
+                random_forest()
+                print(Fore.GREEN + "Algoritmo random forest ejecutado con éxito" + Fore.RESET)
+                sys.exit(0)
+            except Exception as e:
+                print(e)
+        elif args.algorithm == "naive_bayes":
+            try:
+                naive_bayes()
+                print(Fore.GREEN + "Algoritmo naive bayes ejecutado con éxito" + Fore.RESET)
+                sys.exit(0)
+            except Exception as e:
+                print(e)
+        else:
+            print(Fore.RED + "Algoritmo no soportado" + Fore.RESET)
+            sys.exit(1)
+    elif args.mode == "test":
+        # Cargamos el modelo
+        print("\n- Cargando modelo...")
+        global model
+        model = load_model()
+
+        # Preprocesamos los datos
+        print("\n- Preprocesando datos...")
+        preprocesar_datos()
+
         try:
-            kNN()
-            print(Fore.GREEN + "Algoritmo kNN ejecutado con éxito" + Fore.RESET)
+            os.makedirs('output')
+            print(Fore.GREEN + "Carpeta output creada con éxito" + Fore.RESET)
+        except FileExistsError:
+            print(Fore.GREEN + "La carpeta output ya existe" + Fore.RESET)
+        except Exception as e:
+            print(Fore.RED + "Error al crear la carpeta output" + Fore.RESET)
+            print(e)
+            sys.exit(1)
+        # Predecimos
+        print("\n- Prediciendo...")
+        try:
+            predict()
+            print(Fore.GREEN + "Predicción realizada con éxito" + Fore.RESET)
+            # Guardamos el dataframe con la prediccion
+            data.to_csv('output/Prediccion.csv', index=False)
+            print(Fore.GREEN + "Predicción guardada con éxito" + Fore.RESET)
             sys.exit(0)
         except Exception as e:
             print(e)
-    elif args.algorithm == "decision_tree":
-        try:
-            decision_tree()
-            print(Fore.GREEN + "Algoritmo árbol de decisión ejecutado con éxito" + Fore.RESET)
-            sys.exit(0)
-        except Exception as e:
-            print(e)
-    elif args.algorithm == "random_forest":
-        try:
-            random_forest()
-            print(Fore.GREEN + "Algoritmo random forest ejecutado con éxito" + Fore.RESET)
-            sys.exit(0)
-        except Exception as e:
-            print(e)
-    elif args.algorithm == "naive_bayes":
-        try:
-            naive_bayes()
-            print(Fore.GREEN + "Algoritmo naive bayes ejecutado con éxito" + Fore.RESET)
-            sys.exit(0)
-        except Exception as e:
-            print(e)
+            sys.exit(1)
     else:
-        print(Fore.RED + "Algoritmo no soportado" + Fore.RESET)
+        print(Fore.RED + "Modo no soportado" + Fore.RESET)
         sys.exit(1)
+
 
 # ===========================
 # Entrada principal

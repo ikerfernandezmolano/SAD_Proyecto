@@ -1,18 +1,19 @@
 {
-    "data_file": "../Datos/Spotify_12345.csv",
+    "data_file": "../Datos/Spotify_12345_Test.csv",
     "sep": ";",
     "algorithm": "kNN",
     "prediction": "score",
     "f_score": "macro",
-    "model": null,
+    "model": "output/ModelokNN.pkl",
     "preprocessing": {
         "sampling": "SMOTE",
         "scaler": "zscore",
-        "unique_category_threshold": 150000,
-        "text_process": "tf-idf",
+        "unique_category_threshold": 10,
+        "text_process": "bow",
         "language": "english",
         "impute_num": "median",
-        "impute_cat": "mode"
+        "impute_cat": "mode",
+        "drop_features": ["reviewId","date"]
     },
     "kNN": {
         "k": {
@@ -21,8 +22,8 @@
             "valueMax": 9,
             "step": 2
         },
-        "weights": ["uniform","distance"],
-        "p": [1,2]
+        "weights": ["distance"],
+        "p": [2]
     },
     "decision_tree": {
         "max_depth": [],
