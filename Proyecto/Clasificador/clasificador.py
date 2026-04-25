@@ -7,7 +7,6 @@ import unicodedata
 
 import pandas as pd
 import numpy as np
-import string
 import pickle
 import json
 import csv
@@ -22,7 +21,6 @@ from sklearn.metrics import f1_score, confusion_matrix, precision_score, recall_
 from sklearn.model_selection import GridSearchCV
 # Preprocesado
 from sklearn.preprocessing import MaxAbsScaler, MinMaxScaler, StandardScaler, LabelEncoder, Normalizer
-from sklearn.preprocessing import OneHotEncoder
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from pandas.api.types import is_numeric_dtype
 # kNN
@@ -33,6 +31,8 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 # Naive Bayes
 from sklearn.naive_bayes import MultinomialNB
+# Logistic Regression
+from sklearn.linear_model import LogisticRegression
 # Nltk
 import nltk
 from nltk.corpus import stopwords
@@ -44,6 +44,8 @@ from imblearn.over_sampling import RandomOverSampler
 from imblearn.over_sampling import SMOTE
 # tqdm
 from tqdm import tqdm
+# scipy
+from scipy.sparse import hstack, csr_matrix
 
 global data
 global package
@@ -99,6 +101,12 @@ def load_data(file):
 
     try:
         data = pd.read_csv(file, encoding='utf-8', sep=args.sep)
+        try:
+            # Renombramos la columna a predecir para evitar problemas con el procesado de texto
+            data.rename(columns={args.prediction: "ColumnaAPredecir:" + args.prediction}, inplace=True)
+            args.prediction = "ColumnaAPredecir:" + args.prediction
+        except Exception as e:
+            print(Fore.RED + "Surgio un problema al renombrar la columna a predecir" + Fore.RESET)
         print(Fore.GREEN + "Datos cargados con éxito" + Fore.RESET)
         return data
     except Exception as e:
@@ -343,7 +351,7 @@ def reescaler(numerical_feature):
                 print(Fore.YELLOW + "No se han encontrado columnas numéricas para reescalar" + Fore.RESET)
                 return
 
-            scaler = package['scaler']
+            scaler = model['scaler']
 
             cols = [col for col in numerical_feature.columns if col in data.columns]
             if cols:
@@ -373,22 +381,25 @@ def cat2num(categorical_feature):
                 return
 
             if args.mode == "train":
-                encoder = LabelEncoder()
+                encoders = {}
                 for col in categorical_feature.columns:
-                    data[col] = encoder.fit_transform(data[col])
+                    le = LabelEncoder()
+                    data[col] = le.fit_transform(data[col])
+                    encoders[col] = le
+                package['categorical_encoder'] = encoders
 
             elif args.mode == "test":
-                # Recuperamos el encoder que guardamos en el entrenamiento
-                encoder = model['categorical_encoder']
+                encoders = model['categorical_encoder']
                 for col in categorical_feature.columns:
-                    data[col] = encoder.transform(data[col])
+                    if col in encoders:
+                        le = encoders[col]
+                        data[col] = le.transform(data[col])
+                    else:
+                        print(Fore.YELLOW + f"No hay encoder para la columna {col}" + Fore.RESET)
 
             else:
                 print(Fore.RED + f"Modo no soportado." + Fore.RESET)
                 sys.exit(1)
-
-            # GUARDAMOS el objeto en el package para el Test
-            package['categorical_encoder'] = encoder
 
             print(Fore.GREEN+"Datos categóricos pasados a numéricos con éxito"+Fore.RESET)
         else:
@@ -451,57 +462,40 @@ def process_text(text_feature):
 
     """
     global data
-    if args.mode == "train":
+    if text_feature.columns.size > 0:
         try:
-            if text_feature.columns.size > 0:
+
+            text_data = data[text_feature.columns].astype(str).agg(' '.join, axis=1)
+
+            if args.mode == "train":
                 global package
                 if args.preprocessing["text_process"] == "tf-idf":
-                    vectorizer = TfidfVectorizer()
-                    text_data = data[text_feature.columns].apply(lambda x: ' '.join(x.astype(str)), axis=1)
-                    tfidf_matrix = vectorizer.fit_transform(text_data)
-                    text_features_df = pd.DataFrame(tfidf_matrix.toarray(),
-                                                    columns=vectorizer.get_feature_names_out())
-                    data = pd.concat([data, text_features_df], axis=1)
-                    data.drop(text_feature.columns, axis=1, inplace=True)
-                    print(Fore.GREEN + "Texto tratado con éxito usando TF-IDF" + Fore.RESET)
-                    package['vectorizer'] = vectorizer
+                    vectorizer = TfidfVectorizer(min_df=5, max_df=0.8)
                 elif args.preprocessing["text_process"] == "bow":
-                    vectorizer = CountVectorizer()
-                    text_data = data[text_feature.columns].apply(lambda x: ' '.join(x.astype(str)), axis=1)
-                    bow_matrix = vectorizer.fit_transform(text_data)
-                    text_features_df = pd.DataFrame(bow_matrix.toarray(), columns=vectorizer.get_feature_names_out())
-                    # Unimos las nuevas columnas numéricas
-                    data = pd.concat([data, text_features_df], axis=1)
-                    # ELIMINAMOS las columnas de texto originales para que no den error
-                    data.drop(text_feature.columns, axis=1, inplace=True)
-                    print(Fore.GREEN + "Texto tratado con éxito usando BOW" + Fore.RESET)
-                    package['vectorizer'] = vectorizer
+                    vectorizer = CountVectorizer(min_df=5, max_df=0.8)
                 else:
                     print(Fore.YELLOW + "No se están tratando los textos" + Fore.RESET)
-            else:
-                print(Fore.YELLOW + "No se han encontrado columnas de texto a procesar" + Fore.RESET)
-        except Exception as e:
-            print(Fore.RED + "Error al tratar el texto" + Fore.RESET)
-            print(e)
-            sys.exit(1)
-    elif args.mode == "test":
-        try:
-            if text_feature.columns.size > 0:
-                vectorizer = model['vectorizer']
-                text_data = data[text_feature.columns].apply(lambda x: ' '.join(x.astype(str)), axis=1)
-                matrix = vectorizer.transform(text_data)
-                text_features_df = pd.DataFrame(matrix.toarray(),
-                                                columns=vectorizer.get_feature_names_out())
-                data = pd.concat([data, text_features_df], axis=1)
-                data.drop(text_feature.columns, axis=1, inplace=True)
-                print(Fore.GREEN + "Texto tratado con éxito" + Fore.RESET)
-            else:
-                print(Fore.YELLOW + "No se han encontrado columnas de texto a procesar" + Fore.RESET)
-        except Exception as e:
-            print(Fore.RED + "Error al tratar el texto" + Fore.RESET)
-            print(e)
-            sys.exit(1)
+                    return
 
+                matrix = vectorizer.fit_transform(text_data)
+                package['vectorizer'] = vectorizer
+
+            elif args.mode == "test":
+                vectorizer = model['vectorizer']
+                matrix = vectorizer.transform(text_data)
+
+            else:
+                print(Fore.RED + "No existe soporte para este modo" + Fore.RESET)
+                sys.exit(1)
+
+            data.drop(text_feature.columns, axis=1, inplace=True)
+            text_features_df = pd.DataFrame(matrix.toarray(),columns=vectorizer.get_feature_names_out())
+            data = pd.concat([data, text_features_df], axis=1)
+            print(Fore.GREEN + "Texto tratado con éxito" + Fore.RESET)
+        except Exception as e:
+            print(Fore.RED + "Error al tratar el texto" + Fore.RESET)
+            print(e)
+            sys.exit(1)
 
 def sampling():
     """
@@ -520,35 +514,23 @@ def sampling():
     global data
     if args.mode != "test":
         try:
-            if args.preprocessing["sampling"] == "oversampling":
-                ros = RandomOverSampler(sampling_strategy='minority', random_state=42)
-                x = data.drop(columns=[args.prediction])
-                y = data[args.prediction]
-                x, y = ros.fit_resample(x, y)
-                x = pd.DataFrame(x, columns=data.drop(columns=[args.prediction]).columns)
-                y = pd.Series(y, name=args.prediction)
-                data = pd.concat([x, y], axis=1)
-                print(Fore.GREEN + "Oversampling realizado con éxito" + Fore.RESET)
-            elif args.preprocessing["sampling"] == "undersampling":
-                rus = RandomUnderSampler(sampling_strategy='majority', random_state=42)
-                x = data.drop(columns=[args.prediction])
-                y = data[args.prediction]
-                x, y = rus.fit_resample(x, y)
-                x = pd.DataFrame(x, columns=data.drop(columns=[args.prediction]).columns)
-                y = pd.Series(y, name=args.prediction)
-                data = pd.concat([x, y], axis=1)
-                print(Fore.GREEN + "Undersampling realizado con éxito" + Fore.RESET)
+            if args.preprocessing["sampling"].lower() == "oversampling":
+                sampler = RandomOverSampler(sampling_strategy='minority', random_state=42)
+            elif args.preprocessing["sampling"].lower() == "undersampling":
+                sampler = RandomUnderSampler(sampling_strategy='majority', random_state=42)
             elif args.preprocessing["sampling"].lower() == "smote":
-                sm = SMOTE(sampling_strategy='auto', random_state=42)
-                x = data.drop(columns=[args.prediction])
-                y = data[args.prediction]
-                x, y = sm.fit_resample(x, y)
-                x = pd.DataFrame(x, columns=data.drop(columns=[args.prediction]).columns)
-                y = pd.Series(y, name=args.prediction)
-                data = pd.concat([x, y], axis=1)
-                print(Fore.GREEN + "SMOTE realizado con éxito" + Fore.RESET)
+                sampler = SMOTE(sampling_strategy='auto', random_state=42)
             else:
                 print(Fore.YELLOW + "No se están realizando oversampling, undersampling o SMOTE" + Fore.RESET)
+
+            if args.preprocessing["sampling"].lower() == "oversampling" or args.preprocessing["sampling"].lower() == "smote" or args.preprocessing["sampling"].lower() == "undersampling":
+                x = data.drop(columns=[args.prediction])
+                y = data[args.prediction]
+                x, y = sampler.fit_resample(x, y)
+                x = pd.DataFrame(x, columns=data.drop(columns=[args.prediction]).columns)
+                y = pd.Series(y, name=args.prediction)
+                data = pd.concat([x, y], axis=1)
+                print(Fore.GREEN + f"{args.preprocessing["sampling"]} realizado con éxito" + Fore.RESET)
         except Exception as e:
             print(Fore.RED + "Error al realizar oversampling, undersampling o SMOTE" + Fore.RESET)
             print(e)
@@ -589,6 +571,15 @@ def drop_features():
         print(e)
         sys.exit(1)
 
+def convertirRating():
+    if args.mode == "train":
+        global package
+        package['pnn'] = args.preprocessing["pnn"]
+        if args.preprocessing["pnn"] is True:
+            global data
+            data[args.prediction] = data[args.prediction].apply(lambda x: "positive" if x >= 4 else "negative" if x <= 2 else "neutral")
+            print(Fore.GREEN+"Columna a predecir convertida con éxito"+Fore.RESET)
+
 def preprocesar_datos():
     """
     Función para preprocesar los datos
@@ -626,6 +617,9 @@ def preprocesar_datos():
 
     # Pasar los datos a categoriales a numéricos
     cat2num(categorical_feature)
+
+    # Convertimos los ratings a categorias
+    convertirRating()
 
     # Reescalamos los datos numéricos
     reescaler(numerical_feature)
@@ -730,12 +724,6 @@ def divide_data():
         y = data[args.prediction]
         x = data.drop(columns=[args.prediction])
 
-        # Transformamos la columna objetivo a numérica si no lo es.
-        if not is_numeric_dtype(y):
-            le = LabelEncoder()
-            y = le.fit_transform(y.astype(str))
-            package['label_encoder'] = le
-
         # Dividimos los datos en entrenamiento y dev
         x_train, x_dev, y_train, y_dev = train_test_split(x, y, test_size=0.15, random_state=42)
         return x_train, x_dev, y_train, y_dev
@@ -792,6 +780,8 @@ def save_model(gs):
                     nombreMod = f"{algorithm}_nest{params.get('n_estimators')}_depth{params.get('max_depth')}_split{params.get('min_samples_split')}_leaf{params.get('min_samples_leaf')}_criterion{params.get('criterion')}"
                 elif algorithm.lower() == 'naive_bayes':
                     nombreMod = f"{algorithm}_alpha{params.get('alpha')}"
+                elif algorithm.lower() == 'logistic_regression':
+                    nombreMod = f"{algorithm}_{params.get('C')}_{params.get('penalty')}_{params.get('solver')}"
 
                 # Escribimos los valores correspondientes a esa combinación de parámetros
                 writer.writerow([
@@ -1058,10 +1048,47 @@ def naive_bayes():
         'f1': f'f1_{fscore_param}'
     }
 
-    print("Entrenando Naive Bayes y buscando los mejores parámetros...")
-
     with tqdm(total=100, desc='Procesando random forest', unit='iter', leave=True) as pbar:
         gs = GridSearchCV(MultinomialNB(), args.naive_bayes, cv=5, n_jobs=args.cpu, scoring=scoring_metrics, refit='f1')
+        start_time = time.time()
+        gs.fit(x_train, y_train)
+        end_time = time.time()
+        for i in range(100):
+            time.sleep(random.uniform(0.06, 0.15))  # Esperamos un tiempo aleatorio
+            pbar.update(random.random() * 2)  # Actualizamos la barra con un valor aleatorio
+        pbar.n = 100
+        pbar.last_print_n = 100
+        pbar.update(0)
+
+    execution_time = end_time - start_time
+    print("Tiempo de ejecución:" + Fore.MAGENTA + f" {execution_time} " + Fore.RESET + "segundos")
+
+    # Mostramos los resultados
+    mostrar_resultados(gs, x_dev, y_dev)
+
+    # Guardamos el modelo utilizando pickle
+    save_model(gs)
+
+# =========================================================================
+# Algoritmo Logistic Regression
+# =========================================================================
+
+def logistic_regression():
+    """
+    Función que entrena un modelo de Logistic Regression utilizando GridSearchCV.
+    """
+    x_train, x_dev, y_train, y_dev = divide_data()
+
+    # Configuramos las métricas de evaluación
+    fscore_param = getattr(args, 'f_score', 'macro').lower()
+    scoring_metrics = {
+        'precision': f'precision_{fscore_param}',
+        'recall': f'recall_{fscore_param}',
+        'f1': f'f1_{fscore_param}'
+    }
+
+    with tqdm(total=100, desc='Procesando logistic regression', unit='iter', leave=True) as pbar:
+        gs = GridSearchCV(LogisticRegression(), args.logistic_regression, cv=5, n_jobs=args.cpu, scoring=scoring_metrics, refit='f1')
         start_time = time.time()
         gs.fit(x_train, y_train)
         end_time = time.time()
@@ -1130,15 +1157,13 @@ def predict():
     # Predecimos
     prediction = model['model'].predict(data)
 
-    if 'label_encoder' in model:
-        prediction_labels = model['label_encoder'].inverse_transform(prediction)
-    else:
-        print(Fore.YELLOW + "Aviso: No se encontró label_encoder, usando números." + Fore.RESET)
-        prediction_labels = prediction
-
-    # Añadimos la prediccion al dataframe data
-    data = pd.concat([data, pd.DataFrame(prediction_labels, columns=[f"{args.prediction}_PRED"], index=data.index)], axis=1)
-
+    file = pd.read_csv(args.data_file, encoding='utf-8', sep=args.sep)
+    predict = str(args.prediction).split(":")[1]
+    pred_row = file[predict]
+    if model['pnn']:
+        pred_row = pred_row.apply(lambda x: "positive" if x >= 4 else "negative" if x <= 2 else "neutral")
+    print(Fore.MAGENTA + "> Informe de clasificación:\n" + Fore.RESET, calculate_classification_report(pred_row, prediction))
+    data = pd.concat([file.drop(columns=predict), pred_row, pd.DataFrame(prediction, columns=[args.prediction], index=data.index)], axis=1)
 
 # ===========================
 # Configuración inicial
@@ -1181,6 +1206,13 @@ def config():
             try:
                 naive_bayes()
                 print(Fore.GREEN + "Algoritmo naive bayes ejecutado con éxito" + Fore.RESET)
+                sys.exit(0)
+            except Exception as e:
+                print(e)
+        elif args.algorithm == "logistic_regression":
+            try:
+                logistic_regression()
+                print(Fore.GREEN + "Algoritmo logistic regression ejecutado con éxito" + Fore.RESET)
                 sys.exit(0)
             except Exception as e:
                 print(e)
