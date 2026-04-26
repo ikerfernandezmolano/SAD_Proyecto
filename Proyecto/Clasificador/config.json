@@ -1,19 +1,20 @@
 {
     "data_file": "../Datos/Spotify_12345_Test.csv",
     "sep": ";",
-    "algorithm": "kNN",
+    "algorithm": "logistic_regression",
     "prediction": "score",
     "f_score": "macro",
-    "model": "output/ModelokNN.pkl",
+    "model": "output/Modelologistic_regression.pkl",
     "preprocessing": {
+        "pnn": true,
         "sampling": "SMOTE",
         "scaler": "zscore",
         "unique_category_threshold": 10,
-        "text_process": "bow",
+        "text_process": "tf-idf",
         "language": "english",
         "impute_num": "median",
         "impute_cat": "mode",
-        "drop_features": ["reviewId","date"]
+        "drop_features": ["reviewId"]
     },
     "kNN": {
         "k": {
@@ -39,7 +40,13 @@
         "criterion": ["gini", "entropy"]
     },
     "naive_bayes": {
-        "alpha": [1e-7,1e-3,0.1,0.25,0.5,0.75,1.0],
+        "alpha": [1e-3,0.1,0.25,0.5,0.75,1.0],
         "fit_prior": [true, false]
+    },
+    "logistic_regression": {
+        "C": [0.1,1.0],
+        "l1_ratio": [0],
+        "solver": ["lbfgs"],
+        "max_iter" : [500]
     }
 }
