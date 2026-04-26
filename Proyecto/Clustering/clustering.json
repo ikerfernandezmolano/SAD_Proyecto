@@ -6,6 +6,7 @@
     "language": "english",
     "lda": {
         "k_min": 2,
-        "k_max": 10
+        "k_max": 10,
+        "step": 1
     }
 }

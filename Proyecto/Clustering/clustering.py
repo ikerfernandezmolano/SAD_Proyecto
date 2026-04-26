@@ -153,7 +153,7 @@ def calculate_lda_coherence(id2word, corpus, sentiment):
     print(Fore.CYAN + "\nCalculando métrica de coherencia LDA. Este proceso requiere tiempo..." + Fore.RESET)
     
     coherence_values = []
-    K_rango = range(args.lda["k_min"], args.lda["k_max"] + 1)
+    K_rango = range(args.lda["k_min"], args.lda["k_max"] + 1, args.lda["step"])
     
     mejor_k_valor = 0
     num_mejor_k = 0
