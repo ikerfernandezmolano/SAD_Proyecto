@@ -4,7 +4,6 @@ import sys
 import signal
 import argparse
 import unicodedata
-
 import pandas as pd
 import numpy as np
 import pickle
@@ -22,7 +21,6 @@ from sklearn.model_selection import GridSearchCV
 # Preprocesado
 from sklearn.preprocessing import MaxAbsScaler, MinMaxScaler, StandardScaler, LabelEncoder, Normalizer
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
-from pandas.api.types import is_numeric_dtype
 # kNN
 from sklearn.neighbors import KNeighborsClassifier
 # Decision Tree
