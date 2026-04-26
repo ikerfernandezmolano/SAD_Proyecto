@@ -11,7 +11,6 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import RegexpTokenizer
 from nltk.stem.wordnet import WordNetLemmatizer
-import gensim
 import gensim.corpora as corpora
 from gensim.models import LdaModel, CoherenceModel
 import matplotlib.pyplot as plt
