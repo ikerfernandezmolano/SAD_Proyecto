@@ -7,7 +7,6 @@ import os
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 from colorama import Fore
-
 import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import RegexpTokenizer
@@ -44,25 +43,34 @@ def load_and_filter_data(sentiment):
     """Carga el CSV y filtra por el sentimiento deseado."""
     global data
     try:
-        # Usamos sep=';' como descubrimos en el paso anterior
         df = pd.read_csv(args.data_file, encoding='utf-8', sep=';')
         
         if args.sentiment_column not in df.columns or args.text_column not in df.columns:
-            print(Fore.RED + "Error: Faltan columnas en el CSV." + Fore.RESET)
+            print(f"Error: Faltan columnas requeridas en el archivo CSV.")
+            print(f"El programa buscaba: '{args.text_column}' y '{args.sentiment_column}'")
+            print(f"Columnas que realmente tiene tu CSV: {list(df.columns)}")
             sys.exit(1)
 
-        # Filtramos solo las opiniones del sentimiento objetivo
-        data = df[df[args.sentiment_column] == sentiment].copy()
+        # Mapeo de la escala 1-5 a las categorías de texto
+        if sentiment == "negative":
+            data = df[df[args.sentiment_column].isin([1, 2])].copy()
+        elif sentiment == "neutral":
+            data = df[df[args.sentiment_column] == 3].copy()
+        elif sentiment == "positive":
+            data = df[df[args.sentiment_column].isin([4, 5])].copy()
+        else:
+            data = pd.DataFrame() # Por si acaso llega un sentimiento no reconocido
         
         if data.empty:
-            print(Fore.RED + f"Aviso: No se encontraron registros para la categoría '{sentiment}'." + Fore.RESET)
-            sys.exit(1)
+            print(f"Aviso: No se encontraron registros para la categoría '{sentiment}'.")
+            return
             
-        print(Fore.GREEN + f"Carga exitosa: {len(data)} registros de la categoría '{sentiment}'."+ Fore.RESET)
+        print(f"Carga exitosa: {len(data)} registros de la categoría '{sentiment}'.")
     except Exception as e:
-        print(Fore.RED + "Error fatal al cargar los datos." + Fore.RESET)
+        print("Error al procesar el archivo de datos.")
         print(e)
-        sys.exit(1)
+        data = pd.DataFrame()
+        return
 
 def simplify_text():
     """Limpieza de datos: tokenización, eliminación de stopwords, lematización y filtrado de números."""
@@ -139,7 +147,11 @@ def run_final_model(id2word, corpus, sentiment, optimal_k):
     if not os.path.exists('output'):
         os.makedirs('output')
         
-    output_csv = f'output/Spotify_Clasificacion_{sentiment}.csv'
+    folder_path = os.path.join('output', args.company_name)
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+        
+    output_csv = os.path.join(folder_path, f'Clasificacion_{sentiment}.csv')
     columnas_finales = [args.text_column, args.sentiment_column, 'Topico_Dominante', 'Porcentaje_Similitud']
     data[columnas_finales].to_csv(output_csv, sep=';', index=False, encoding='utf-8')
     
@@ -177,13 +189,17 @@ def calculate_lda_coherence(id2word, corpus, sentiment):
     plt.plot(K_rango, coherence_values, marker='o', linestyle='-', color='g')
     plt.title(f'Gráfico de Coherencia LDA ({sentiment.capitalize()})')
     plt.xlabel('Número de Tópicos (k)')
-    plt.ylabel('Coherencia C_V (Buscar el punto más alto)')
+    plt.ylabel('Coherencia C_V')
     plt.grid(True)
     
     if not os.path.exists('output'):
         os.makedirs('output')
         
-    ruta_grafico = f'output/grafico_coherencia_{sentiment}.png'
+    folder_path = os.path.join('output', args.company_name)
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+        
+    ruta_grafico = os.path.join(folder_path, f'grafico_coherencia_{sentiment}.png')
     plt.savefig(ruta_grafico)
     print(Fore.GREEN + f"\nGráfico de coherencia guardado en: {ruta_grafico}" + Fore.RESET)
 

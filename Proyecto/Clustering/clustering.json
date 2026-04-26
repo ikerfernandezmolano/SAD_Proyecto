@@ -1,7 +1,8 @@
 {
-    "data_file": "../Datos/Spotify_PNN.csv",
+    "data_file": "../Datos/Spotify_12345.csv",
+    "company_name": "Spotify",
     "text_column": "review", 
-    "sentiment_column": "sentiment_classification",
+    "sentiment_column": "score",
     "target_sentiment": ["negative", "positive", "neutral"],
     "language": "english",
     "lda": {
