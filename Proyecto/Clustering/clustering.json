@@ -1,6 +1,6 @@
 {
-    "data_file": "../Datos/Spotify_12345.csv",
-    "company_name": "Spotify",
+    "data_file": "../Datos/AppleMusic_12345.csv",
+    "company_name": "Apple Music",
     "text_column": "review", 
     "sentiment_column": "score",
     "target_sentiment": ["negative", "positive", "neutral"],
