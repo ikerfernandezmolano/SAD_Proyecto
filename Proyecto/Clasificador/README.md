@@ -31,13 +31,15 @@ python3 clasificador.py --json archivo_config.json --mode train/test [-v/--verbo
     "f_score": "macro/micro/weighted",
     "model": "modelo.pkl",
     "preprocessing": {
+        "pnn": true,
         "sampling": "oversampling/undersampling/SMOTE",
         "scaler": "minmax/maxabs/zscore/standard",
         "unique_category_threshold": value,
         "text_process": "tf-idf/bow",
         "language": "language",
         "impute_num": "mean/mode/median/constant/delete",
-        "impute_cat": "mode/constant/delete"
+        "impute_cat": "mode/constant/delete",
+        "drop_features": ["campo1", "campo2", ..., "campoN"]
     },
     "kNN": {
         "k": {
