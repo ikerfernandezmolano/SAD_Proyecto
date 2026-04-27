@@ -1,5 +1,5 @@
 {
-    "data_file": "../Datos/Spotify_12345_Test.csv",
+    "data_file": "Proyecto/Datos/Spotify_12345_Train.csv",
     "sep": ";",
     "algorithm": "logistic_regression",
     "prediction": "score",
@@ -20,23 +20,23 @@
         "k": {
             "kValues" : [],
             "valueMin": 1,
-            "valueMax": 9,
+            "valueMax": 13,
             "step": 2
         },
-        "weights": ["distance"],
-        "p": [2]
+        "weights": ["uniform","distance"],
+        "p": [1,2]
     },
     "decision_tree": {
-        "max_depth": [],
-        "min_samples_split": [],
-        "min_samples_leaf": [],
+        "max_depth": [null, 10, 20, 50],
+        "min_samples_split": [2, 5, 10],
+        "min_samples_leaf": [1, 2, 4],
         "criterion": ["gini", "entropy"]
     },
     "random_forest": {
-        "n_estimators": [],
-        "max_depth": [],
-        "min_samples_split": [],
-        "min_samples_leaf": [],
+        "n_estimators": [100, 300, 500],
+        "max_depth": [null, 10, 20, 50],
+        "min_samples_split": [2, 5, 10],
+        "min_samples_leaf": [1, 2, 4],
         "criterion": ["gini", "entropy"]
     },
     "naive_bayes": {
@@ -44,9 +44,9 @@
         "fit_prior": [true, false]
     },
     "logistic_regression": {
-        "C": [0.1,1.0],
-        "l1_ratio": [0],
-        "solver": ["lbfgs"],
-        "max_iter" : [500]
+        "C": [0.001, 0.01, 0.1, 1, 10, 100],
+        "l1_ratio": [0, 1],
+        "solver": ["lbfgs", "saga"],
+        "max_iter" : [500,1000]
     }
 }
