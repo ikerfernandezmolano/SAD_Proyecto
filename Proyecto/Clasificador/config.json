@@ -1,10 +1,11 @@
 {
-    "data_file": "../Datos/Spotify_12345_Train.csv",
+    "data_file1": "../Datos/Spotify_Train.csv",
+    "data_file2": "../Datos/Spotify_Dev.csv",
     "sep": ";",
-    "algorithm": "random_forest",
+    "algorithm": "logistic_regression",
     "prediction": "score",
     "f_score": "macro",
-    "model": "output/Modelorandom_forest.pkl",
+    "model": "output/Modelologistic_regression.pkl",
     "preprocessing": {
         "pnn": true,
         "sampling": "ADASYN",
@@ -34,10 +35,10 @@
     },
     "random_forest": {
         "n_estimators": [100, 300, 500],
-        "max_depth": [null],
-        "min_samples_split": [2],
-        "min_samples_leaf": [1],
-        "criterion": ["gini"]
+        "max_depth": [null, 10, 20, 50],
+        "min_samples_split": [2, 5, 10],
+        "min_samples_leaf": [1, 2, 4],
+        "criterion": ["gini", "entropy"]
     },
     "naive_bayes": {
         "alpha": [1e-3,0.1,0.25,0.5,0.75,1.0],

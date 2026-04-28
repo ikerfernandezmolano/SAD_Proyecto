@@ -45,7 +45,6 @@ from imblearn.over_sampling import ADASYN
 # tqdm
 from tqdm import tqdm
 
-global data
 global package
 global model
 package = {}
@@ -100,11 +99,13 @@ def load_data(file):
     try:
         data = pd.read_csv(file, encoding='utf-8', sep=args.sep)
         try:
-            # Renombramos la columna a predecir para evitar problemas con el procesado de texto
-            data.rename(columns={args.prediction: "ColumnaAPredecir:" + args.prediction}, inplace=True)
-            args.prediction = "ColumnaAPredecir:" + args.prediction
+            if "ColumnaAPredecir" not in str(args.prediction):
+                data.rename(columns={args.prediction: "ColumnaAPredecir:" + args.prediction}, inplace=True)
+                args.prediction = "ColumnaAPredecir:" + args.prediction
+            else:
+                data.rename(columns={str(args.prediction).split(":")[1]: args.prediction}, inplace=True)
         except Exception as e:
-            print(Fore.RED + "Surgio un problema al renombrar la columna a predecir" + Fore.RESET)
+            print(Fore.RED + "Surgió un problema al renombrar la columna a predecir" + Fore.RESET)
         print(Fore.GREEN + "Datos cargados con éxito" + Fore.RESET)
         return data
     except Exception as e:
@@ -116,7 +117,7 @@ def load_data(file):
 # Preprocesado
 # ===========================
 
-def select_features():
+def select_features(data):
     """
     Separa las características del conjunto de datos en características numéricas, de texto y categóricas.
 
@@ -125,7 +126,6 @@ def select_features():
         text_feature (DataFrame): DataFrame que contiene las características de texto.
         categorical_feature (DataFrame): DataFrame que contiene las características categóricas.
     """
-    global data
     try:
         if args.mode == "train":
             # 1. Identificar numéricas
@@ -150,7 +150,7 @@ def select_features():
                 text_feature = text_feature.drop(columns=[args.prediction])
 
             print(Fore.GREEN + "Datos separados con éxito (Predicción excluida de X)" + Fore.RESET)
-            return numerical_feature, text_feature, categorical_feature
+            return data, numerical_feature, text_feature, categorical_feature
         elif args.mode == "test":
             # Eliminar la columna que quieres predecir para que no entre al modelo
             if args.prediction in data.columns:
@@ -171,14 +171,14 @@ def select_features():
 
             print(Fore.GREEN + "Datos separados con éxito" + Fore.RESET)
 
-            return numerical_feature, text_feature, categorical_feature
+            return data, numerical_feature, text_feature, categorical_feature
     except Exception as e:
         print(Fore.RED + "Error al separar los datos" + Fore.RESET)
         print(e)
         sys.exit(1)
 
 
-def process_missing_values(numerical_feature, categorical_feature, text_feature):
+def process_missing_values(data, numerical_feature, categorical_feature):
     """
     Procesa los valores faltantes en los datos según la estrategia especificada en los argumentos.
 
@@ -192,9 +192,8 @@ def process_missing_values(numerical_feature, categorical_feature, text_feature)
     Raises:
         None
     """
-    global data
-    if args.mode == "train":
-        try:
+    try:
+        if args.mode == "train":
             # Leemos la estrategia del JSON (si no la pones, usa mediana y moda por defecto)
             impute_num = args.preprocessing.get("impute_num", "median").lower()
             impute_cat = args.preprocessing.get("impute_cat", "mode").lower()
@@ -229,8 +228,7 @@ def process_missing_values(numerical_feature, categorical_feature, text_feature)
                             data[col] = data[col].fillna(data[col].median())
             # Categóricas
             if impute_cat == "constant":
-                package['impute_cat_const'] = str(
-                    input("¿Qué constante quieres utilizar para la imputación de valores categoriales?: "))
+                package['impute_cat_const'] = str(input("¿Qué constante quieres utilizar para la imputación de valores categoriales?: "))
             if impute_cat == "delete":
                 data = data.dropna(subset=categorical_feature.columns)
             else:
@@ -244,12 +242,7 @@ def process_missing_values(numerical_feature, categorical_feature, text_feature)
                             data[col] = data[col].fillna(fill_value)
 
             print(Fore.GREEN + "Valores faltantes procesados con éxito" + Fore.RESET)
-        except Exception as e:
-            print(Fore.RED + "Error al procesar valores faltantes" + Fore.RESET)
-            print(e)
-            sys.exit(1)
-    elif args.mode == "test":
-        try:
+        elif args.mode == "test":
             # Leemos la estrategia del JSON (si no la pones, usa mediana y moda por defecto)
             impute_num = model['impute_num']
             impute_cat = model['impute_cat']
@@ -286,13 +279,18 @@ def process_missing_values(numerical_feature, categorical_feature, text_feature)
                             data[col] = data[col].fillna(fill_value)
 
             print(Fore.GREEN + "Valores faltantes procesados con éxito" + Fore.RESET)
-        except Exception as e:
-            print(Fore.RED + "Error al procesar valores faltantes" + Fore.RESET)
-            print(e)
+        else:
+            print(Fore.RED + "Modo no soportado" + Fore.RESET)
             sys.exit(1)
+        return data
+
+    except Exception as e:
+        print(Fore.RED + "Error al procesar valores faltantes" + Fore.RESET)
+        print(e)
+        sys.exit(1)
 
 
-def reescaler(numerical_feature):
+def reescaler(data, numerical_feature, dev):
     """
     Rescala las características numéricas en el conjunto de datos utilizando diferentes métodos de escala.
 
@@ -306,38 +304,36 @@ def reescaler(numerical_feature):
         Exception: Si hay un error al reescalar los datos.
 
     """
-    global data
     if args.mode == "train":
         try:
             if numerical_feature.columns.size > 0:
-                scaler_name = args.preprocessing.get("scaler", "standard").lower()
-
-                if scaler_name == "minmax":
-                    scaler = MinMaxScaler()
-                    data[numerical_feature.columns] = scaler.fit_transform(data[numerical_feature.columns])
-                    print(Fore.GREEN + f"Datos reescalados con éxito utilizando {scaler_name}" + Fore.RESET)
-                elif scaler_name == "maxabs":
-                    scaler = MaxAbsScaler()
-                    data[numerical_feature.columns] = scaler.fit_transform(data[numerical_feature.columns])
-                    print(Fore.GREEN + f"Datos reescalados con éxito utilizando {scaler_name}" + Fore.RESET)
-                elif scaler_name == "zscore":
-                    scaler = StandardScaler()
-                    data[numerical_feature.columns] = scaler.fit_transform(data[numerical_feature.columns])
-                    print(Fore.GREEN + f"Datos reescalados con éxito utilizando {scaler_name}" + Fore.RESET)
-                elif scaler_name == "normalizer":
-                    scaler = Normalizer()
-                    data[numerical_feature.columns] = scaler.fit_transform(data[numerical_feature.columns])
-                    print(Fore.GREEN + f"Datos reescalados con éxito utilizando {scaler_name}" + Fore.RESET)
-                else:
-                    scaler = None
-                    print(Fore.YELLOW+"No se están escalando los datos"+Fore.RESET)
-
                 global package
-                package['scaler'] = scaler
+                if not dev:
+                    scaler_name = args.preprocessing.get("scaler", "standard").lower()
 
+                    if scaler_name == "minmax":
+                        scaler = MinMaxScaler()
+                        print(Fore.GREEN + f"Datos reescalados con éxito utilizando {scaler_name}" + Fore.RESET)
+                    elif scaler_name == "maxabs":
+                        scaler = MaxAbsScaler()
+                        print(Fore.GREEN + f"Datos reescalados con éxito utilizando {scaler_name}" + Fore.RESET)
+                    elif scaler_name == "zscore":
+                        scaler = StandardScaler()
+                        print(Fore.GREEN + f"Datos reescalados con éxito utilizando {scaler_name}" + Fore.RESET)
+                    elif scaler_name == "normalizer":
+                        scaler = Normalizer()
+                        print(Fore.GREEN + f"Datos reescalados con éxito utilizando {scaler_name}" + Fore.RESET)
+                    else:
+                        print(Fore.YELLOW+"No se están escalando los datos"+Fore.RESET)
+                        return data
+                    data[numerical_feature.columns] = scaler.fit_transform(data[numerical_feature.columns])
+                    package['scaler'] = scaler
+                else:
+                    scaler = package['scaler']
+                    data[numerical_feature.columns] = scaler.transform(data[numerical_feature.columns])
             else:
                 print(Fore.YELLOW + "No se han encontrado columnas numéricas para reescalar" + Fore.RESET)
-                return
+                return data
 
         except Exception as e:
                 print(Fore.RED + "Error al reescalar los datos" + Fore.RESET)
@@ -347,21 +343,29 @@ def reescaler(numerical_feature):
         try:
             if numerical_feature.columns.size == 0:
                 print(Fore.YELLOW + "No se han encontrado columnas numéricas para reescalar" + Fore.RESET)
-                return
+                return data
 
             scaler = model['scaler']
 
             cols = [col for col in numerical_feature.columns if col in data.columns]
-            if cols:
+            if cols and scaler:
                 data[cols] = scaler.transform(data[cols])
                 print(Fore.GREEN + "Datos reescalados con éxito" + Fore.RESET)
+            elif not scaler:
+                print(Fore.YELLOW + "No se están escalando los datos" + Fore.RESET)
+                return data
         except Exception as e:
             print(Fore.RED + "Error al reescalar los datos" + Fore.RESET)
             print(e)
             sys.exit(1)
+    else:
+        print(Fore.RED + f"Modo no soportado." + Fore.RESET)
+        sys.exit(1)
+
+    return data
 
 
-def cat2num(categorical_feature):
+def cat2num(data, categorical_feature, dev):
     """
     Convierte las características categóricas en características numéricas utilizando la codificación de etiquetas.
 
@@ -369,14 +373,14 @@ def cat2num(categorical_feature):
     categorical_feature (DataFrame): El DataFrame que contiene las características categóricas a convertir.
 
     """
-    global data, package
+    global package
     try:
         if categorical_feature.columns.size > 0:
 
             # Filtrar columnas que realmente existen en data
             cols = [col for col in categorical_feature.columns if col in data.columns]
             if not cols:
-                return
+                return data
 
             if args.mode == "train":
                 encoders = {}
@@ -386,8 +390,11 @@ def cat2num(categorical_feature):
                     encoders[col] = le
                 package['categorical_encoder'] = encoders
 
-            elif args.mode == "test":
-                encoders = model['categorical_encoder']
+            elif args.mode == "test" or dev:
+                if args.mode == "test":
+                    encoders = model['categorical_encoder']
+                elif dev:
+                    encoders = package['categorical_encoder']
                 for col in categorical_feature.columns:
                     if col in encoders:
                         le = encoders[col]
@@ -400,15 +407,16 @@ def cat2num(categorical_feature):
                 sys.exit(1)
 
             print(Fore.GREEN+"Datos categóricos pasados a numéricos con éxito"+Fore.RESET)
+            return data
         else:
             print(Fore.YELLOW + "No se han encontrado columnas categóricas para convertir" + Fore.RESET)
-            return
+            return data
         
     except Exception as e:
         print(Fore.RED + f"Error en cat2num: {e}" + Fore.RESET)
         sys.exit(1)
 
-def simplify_text(text_feature):
+def simplify_text(data, text_feature):
     """
     Función que simplifica el texto de una columna dada en un DataFrame. lower,stemmer, tokenizer, stopwords del NLTK....
 
@@ -418,7 +426,6 @@ def simplify_text(text_feature):
     Retorna:
     None
     """
-    global data
 
     try:
         if text_feature.columns.size > 0:
@@ -448,16 +455,15 @@ def simplify_text(text_feature):
                 data[col] = data[col].apply(lambda x: ''.join(c for c in unicodedata.normalize('NFD', ' '.join(x)) if unicodedata.category(c) != 'Mn'))
 
             print(Fore.GREEN + "Texto simplificado con éxito" + Fore.RESET)
-
         else:
             print(Fore.YELLOW + "No se han encontrado columnas de texto para simplificar" + Fore.RESET)
-
+        return data
     except Exception as e:
         print(Fore.RED + "Error al simplificar el texto" + Fore.RESET)
         print(e)
         sys.exit(1)
 
-def process_text(text_feature):
+def process_text(data, text_feature, dev):
     """
     Procesa las características de texto utilizando técnicas de vectorización como TF-IDF o BOW.
 
@@ -465,24 +471,25 @@ def process_text(text_feature):
     text_feature (pandas.DataFrame): Un DataFrame que contiene las características de texto a procesar.
 
     """
-    global data
-    if text_feature.columns.size > 0:
-        try:
-
+    try:
+        if text_feature.columns.size > 0:
             text_data = data[text_feature.columns].astype(str).agg(' '.join, axis=1)
 
             if args.mode == "train":
                 global package
-                if args.preprocessing["text_process"] == "tf-idf":
-                    vectorizer = TfidfVectorizer(min_df=5, max_df=0.8)
-                elif args.preprocessing["text_process"] == "bow":
-                    vectorizer = CountVectorizer(min_df=5, max_df=0.8)
+                if not dev:
+                    if args.preprocessing["text_process"] == "tf-idf":
+                        vectorizer = TfidfVectorizer(min_df=5, max_df=0.8)
+                    elif args.preprocessing["text_process"] == "bow":
+                        vectorizer = CountVectorizer(min_df=5, max_df=0.8)
+                    else:
+                        print(Fore.YELLOW + "No se están tratando los textos" + Fore.RESET)
+                        return data
+                    matrix = vectorizer.fit_transform(text_data)
+                    package['vectorizer'] = vectorizer
                 else:
-                    print(Fore.YELLOW + "No se están tratando los textos" + Fore.RESET)
-                    return
-
-                matrix = vectorizer.fit_transform(text_data)
-                package['vectorizer'] = vectorizer
+                    vectorizer = package['vectorizer']
+                    matrix = vectorizer.transform(text_data)
 
             elif args.mode == "test":
                 vectorizer = model['vectorizer']
@@ -496,12 +503,15 @@ def process_text(text_feature):
             text_features_df = pd.DataFrame(matrix.toarray(),columns=vectorizer.get_feature_names_out())
             data = pd.concat([data, text_features_df], axis=1)
             print(Fore.GREEN + "Texto tratado con éxito" + Fore.RESET)
-        except Exception as e:
-            print(Fore.RED + "Error al tratar el texto" + Fore.RESET)
-            print(e)
-            sys.exit(1)
 
-def sampling():
+    except Exception as e:
+        print(Fore.RED + "Error al tratar el texto" + Fore.RESET)
+        print(e)
+        sys.exit(1)
+
+    return data
+
+def sampling(data):
     """
     Realiza oversampling o undersampling en los datos según la estrategia especificada en args.preprocessing["sampling"].
 
@@ -515,9 +525,8 @@ def sampling():
         Exception: Si ocurre algún error al realizar el oversampling o undersampling.
     """
 
-    global data
-    if args.mode != "test":
-        try:
+    try:
+        if args.mode != "test":
             if args.preprocessing["sampling"].lower() == "oversampling":
                 sampler = RandomOverSampler(sampling_strategy='auto', random_state=42)
             elif args.preprocessing["sampling"].lower() == "undersampling":
@@ -537,15 +546,17 @@ def sampling():
                 y = pd.Series(y, name=args.prediction)
                 data = pd.concat([x, y], axis=1)
                 print(Fore.GREEN + f"{args.preprocessing["sampling"]} realizado con éxito" + Fore.RESET)
-        except Exception as e:
-            print(Fore.RED + "Error al realizar oversampling, undersampling, SMOTE o ADASYN" + Fore.RESET)
-            print(e)
-            sys.exit(1)
+        else:
+            print(Fore.GREEN + "No se realiza oversampling, undersampling o SMOTE en modo test" + Fore.RESET)
 
-    else:
-        print(Fore.GREEN + "No se realiza oversampling, undersampling o SMOTE en modo test" + Fore.RESET)
+    except Exception as e:
+        print(Fore.RED + "Error al realizar oversampling, undersampling, SMOTE o ADASYN" + Fore.RESET)
+        print(e)
+        sys.exit(1)
 
-def drop_features():
+    return data
+
+def drop_features(data):
     """
     Elimina las columnas especificadas en el argumento 'drop_features' del dataset global 'data'.
 
@@ -561,7 +572,6 @@ def drop_features():
     Retorna:
     - Ninguno
     """
-    global data
     try:
         if args.preprocessing["drop_features"] != []:
             for column in args.preprocessing["drop_features"]:
@@ -572,21 +582,22 @@ def drop_features():
             print(Fore.GREEN+f"Columnas eliminadas"+Fore.RESET)
         else:
             print(Fore.YELLOW+"No se han especificado columnas a eliminar"+Fore.RESET)
+        return data
     except Exception as e:
         print(Fore.RED+"Error al eliminar columnas"+Fore.RESET)
         print(e)
         sys.exit(1)
 
-def convertirRating():
+def convertirRating(data):
     if args.mode == "train":
         global package
         package['pnn'] = args.preprocessing["pnn"]
         if args.preprocessing["pnn"] is True:
-            global data
             data[args.prediction] = data[args.prediction].apply(lambda x: "positive" if x >= 4 else "negative" if x <= 2 else "neutral")
             print(Fore.GREEN+"Columna a predecir convertida con éxito"+Fore.RESET)
+    return data
 
-def preprocesar_datos():
+def preprocesar_datos(data, dev):
     """
     Función para preprocesar los datos
         1. Separamos los datos por tipos (Categoriales, numéricos y textos)
@@ -601,40 +612,36 @@ def preprocesar_datos():
     :return: Datos preprocesados y divididos en train y test
     """
 
-    print("\n- Descargando diccionarios...")
-    nltk.download('stopwords')
-    nltk.download('punkt')
-    nltk.download('wordnet')
-
     # Silencia los avisos de depuración de Pandas
     warnings.filterwarnings("ignore", category=Pandas4Warning)
 
     # Eliminamos columnas no necesarias
-    drop_features()
+    data = drop_features(data)
 
     # Separamos los datos por tipos
-    numerical_feature, text_feature, categorical_feature = select_features()
+    data, numerical_feature, text_feature, categorical_feature = select_features(data)
 
     # Simplificamos el texto
-    simplify_text(text_feature)
+    data = simplify_text(data, text_feature)
 
     # Tratamos missing values
-    process_missing_values(numerical_feature, categorical_feature, text_feature)
+    data = process_missing_values(data, numerical_feature, categorical_feature)
 
     # Pasar los datos a categoriales a numéricos
-    cat2num(categorical_feature)
+    data = cat2num(data, categorical_feature, dev)
 
     # Convertimos los ratings a categorias
-    convertirRating()
+    data = convertirRating(data)
 
     # Reescalamos los datos numéricos
-    reescaler(numerical_feature)
+    data = reescaler(data, numerical_feature, dev)
 
     # Tratamos el texto
-    process_text(text_feature)
+    data = process_text(data, text_feature, dev)
 
-    # Balanceo
-    sampling()
+    if not dev:
+        # Balanceo
+        data = sampling(data)
 
     return data
 
@@ -705,40 +712,6 @@ def calculate_classification_report(y_true, y_pred):
 # =========================================
 # Funciones comunes para los modelos
 # =========================================
-
-def divide_data():
-    """
-    Función que divide los datos en conjuntos de entrenamiento y desarrollo.
-
-    Parámetros:
-    - data: DataFrame que contiene los datos.
-    - args: Objeto que contiene los argumentos necesarios para la división de datos.
-
-    Retorna:
-    - x_train: DataFrame con las características de entrenamiento.
-    - x_dev: DataFrame con las características de desarrollo.
-    - y_train: Serie con las etiquetas de entrenamiento.
-    - y_dev: Serie con las etiquetas de desarrollo.
-    """
-
-    try:
-
-        if args.prediction not in data.columns:
-            raise ValueError(f"La columna objetivo '{args.prediction}' no existe en el dataset.")
-
-        # Sacamos la columna a predecir
-        y = data[args.prediction]
-        x = data.drop(columns=[args.prediction])
-
-        # Dividimos los datos en entrenamiento y dev
-        x_train, x_dev, y_train, y_dev = train_test_split(x, y, test_size=0.15, random_state=42)
-        return x_train, x_dev, y_train, y_dev
-
-    except Exception as e:
-        print(Fore.RED + "Error al dividir datos: " + str(e) + Fore.RESET)
-        sys.exit(1)
-
-
 
 def save_model(gs):
     """
@@ -840,7 +813,7 @@ def mostrar_resultados(gs, x_dev, y_dev):
 # - Texto libre (TF-IDF): La alta dimensionalidad estropea el cálculo de distancias.
 # - Datos muy desbalanceados (la clase mayoritaria domina, salvo que se use weights).
 # =========================================================================
-def kNN():
+def kNN(train, dev):
     """
     Función para implementar el algoritmo kNN.
     Hace un barrido de hiperparametros para encontrar los parametros optimos
@@ -868,8 +841,11 @@ def kNN():
         'weights': weights
     }
 
-    # Dividimos los datos en entrenamiento y dev
-    X_train, X_dev, y_train, y_dev = divide_data()
+    # Dividimos los datos
+    y_train = train[args.prediction]
+    x_train = train.drop(columns=[args.prediction])
+    y_dev = dev[args.prediction]
+    x_dev = dev.drop(columns=[args.prediction])
 
     # Configuramos las métricas de evaluación
     fscore_param = getattr(args, 'f_score', 'macro').lower()
@@ -883,7 +859,7 @@ def kNN():
     with tqdm(total=100, desc='Procesando kNN', unit='iter', leave=True) as pbar:
         gs = GridSearchCV(KNeighborsClassifier(), k_params, cv=5, n_jobs=args.cpu, scoring=scoring_metrics, refit='f1')
         start_time = time.time()
-        gs.fit(X_train, y_train)
+        gs.fit(x_train, y_train)
         end_time = time.time()
         for i in range(100):
             time.sleep(random.uniform(0.06, 0.15))  # Esperamos un tiempo aleatorio
@@ -896,7 +872,7 @@ def kNN():
     print(f"Tiempo de ejecución: {Fore.MAGENTA}{execution_time:.2f}{Fore.RESET} segundos")
 
     # Mostramos los resultados
-    mostrar_resultados(gs, X_dev, y_dev)
+    mostrar_resultados(gs, x_dev, y_dev)
 
     # Guardamos el modelo utilizando pickle
     save_model(gs)
@@ -916,7 +892,7 @@ def kNN():
 # - Alto riesgo de OVERFITTING (sobreajuste) si no se limita la profundidad 
 #   (max_depth). Tiende a memorizar el dataset en lugar de generalizar.
 # =========================================================================
-def decision_tree():
+def decision_tree(train, dev):
     """
     Función para implementar el algoritmo de árbol de decisión.
 
@@ -931,8 +907,11 @@ def decision_tree():
     # Esto ignorará específicamente los avisos de precisión/f-score indefinidos
     warnings.filterwarnings("ignore", category=UndefinedMetricWarning)
 
-    # Dividimos los datos en entrenamiento y dev
-    x_train, x_dev, y_train, y_dev = divide_data()
+    # Dividimos los datos
+    y_train = train[args.prediction]
+    x_train = train.drop(columns=[args.prediction])
+    y_dev = dev[args.prediction]
+    x_dev = dev.drop(columns=[args.prediction])
 
     # Configuramos las métricas de evaluación
     fscore_param = getattr(args, 'f_score', 'macro').lower()
@@ -980,7 +959,7 @@ def decision_tree():
 # - Recursos limitados (consume mucha memoria RAM y CPU al entrenar).
 # =========================================================================
 
-def random_forest():
+def random_forest(train, dev):
     """
     Función que entrena un modelo de Random Forest utilizando GridSearchCV para encontrar los mejores hiperparámetros.
     Divide los datos en entrenamiento y desarrollo, realiza la búsqueda de hiperparámetros, guarda el modelo entrenado
@@ -992,8 +971,12 @@ def random_forest():
     Retorna:
         Ninguno
     """
-    # Dividimos los datos en entrenamiento y dev
-    x_train, x_dev, y_train, y_dev = divide_data()
+
+    # Dividimos los datos
+    y_train = train[args.prediction]
+    x_train = train.drop(columns=[args.prediction])
+    y_dev = dev[args.prediction]
+    x_dev = dev.drop(columns=[args.prediction])
 
     # Configuramos las métricas de evaluación
     fscore_param = getattr(args, 'f_score', 'macro').lower()
@@ -1040,11 +1023,16 @@ def random_forest():
 #   entre sí (porque rompe la regla matemática de independencia).
 # =========================================================================
 
-def naive_bayes():
+def naive_bayes(train, dev):
     """
     Función que entrena un modelo de Naive Bayes utilizando GridSearchCV.
     """
-    x_train, x_dev, y_train, y_dev = divide_data()
+
+    # Dividimos los datos
+    y_train = train[args.prediction]
+    x_train = train.drop(columns=[args.prediction])
+    y_dev = dev[args.prediction]
+    x_dev = dev.drop(columns=[args.prediction])
 
     # Configuramos las métricas de evaluación
     fscore_param = getattr(args, 'f_score', 'macro').lower()
@@ -1079,11 +1067,16 @@ def naive_bayes():
 # Algoritmo Logistic Regression
 # =========================================================================
 
-def logistic_regression():
+def logistic_regression(train, dev):
     """
     Función que entrena un modelo de Logistic Regression utilizando GridSearchCV.
     """
-    x_train, x_dev, y_train, y_dev = divide_data()
+
+    # Dividimos los datos
+    y_train = train[args.prediction]
+    x_train = train.drop(columns=[args.prediction])
+    y_dev = dev[args.prediction]
+    x_dev = dev.drop(columns=[args.prediction])
 
     # Configuramos las métricas de evaluación
     fscore_param = getattr(args, 'f_score', 'macro').lower()
@@ -1139,7 +1132,7 @@ def load_model():
         print(e)
         sys.exit(1)
 
-def predict():
+def predict(data):
     """
     Realiza una predicción utilizando el modelo entrenado y guarda los resultados en un archivo CSV.
 
@@ -1158,7 +1151,6 @@ def predict():
         Retorna:
             Ninguno
         """
-    global data
 
     # Predecimos
     prediction = model['model'].predict(data)
@@ -1170,6 +1162,7 @@ def predict():
         pred_row = pred_row.apply(lambda x: "positive" if x >= 4 else "negative" if x <= 2 else "neutral")
     print(Fore.MAGENTA + "> Informe de clasificación:\n" + Fore.RESET, calculate_classification_report(pred_row, prediction))
     data = pd.concat([file.drop(columns=predict), pred_row, pd.DataFrame(prediction, columns=[args.prediction], index=data.index)], axis=1)
+    return data
 
 # ===========================
 # Configuración inicial
@@ -1178,46 +1171,53 @@ def predict():
 def config():
     # Cargamos los datos con los que vamos a trabajar
     print("\n- Cargando datos...")
-    global data
-    data = load_data(args.data_file)
+    data = load_data(args.data_file1)
 
     if args.mode == "train":
+        data_aux = load_data(args.data_file2)
+
+        print("\n- Descargando diccionarios...")
+        nltk.download('stopwords')
+        nltk.download('punkt')
+        nltk.download('wordnet')
 
         # Preprocesamos los datos
-        print("\n- Preprocesando datos...")
-        preprocesar_datos()
+        print("\n- Preprocesando train...")
+        data = preprocesar_datos(data, False)
+        print("\n- Preprocesando dev...")
+        data_aux = preprocesar_datos(data_aux, True)
 
         if args.algorithm == "kNN":
             try:
-                kNN()
+                kNN(data, data_aux)
                 print(Fore.GREEN + "Algoritmo kNN ejecutado con éxito" + Fore.RESET)
                 sys.exit(0)
             except Exception as e:
                 print(e)
         elif args.algorithm == "decision_tree":
             try:
-                decision_tree()
+                decision_tree(data, data_aux)
                 print(Fore.GREEN + "Algoritmo árbol de decisión ejecutado con éxito" + Fore.RESET)
                 sys.exit(0)
             except Exception as e:
                 print(e)
         elif args.algorithm == "random_forest":
             try:
-                random_forest()
+                random_forest(data, data_aux)
                 print(Fore.GREEN + "Algoritmo random forest ejecutado con éxito" + Fore.RESET)
                 sys.exit(0)
             except Exception as e:
                 print(e)
         elif args.algorithm == "naive_bayes":
             try:
-                naive_bayes()
+                naive_bayes(data, data_aux)
                 print(Fore.GREEN + "Algoritmo naive bayes ejecutado con éxito" + Fore.RESET)
                 sys.exit(0)
             except Exception as e:
                 print(e)
         elif args.algorithm == "logistic_regression":
             try:
-                logistic_regression()
+                logistic_regression(data, data_aux)
                 print(Fore.GREEN + "Algoritmo logistic regression ejecutado con éxito" + Fore.RESET)
                 sys.exit(0)
             except Exception as e:
@@ -1231,9 +1231,14 @@ def config():
         global model
         model = load_model()
 
+        print("\n- Descargando diccionarios...")
+        nltk.download('stopwords')
+        nltk.download('punkt')
+        nltk.download('wordnet')
+
         # Preprocesamos los datos
-        print("\n- Preprocesando datos...")
-        preprocesar_datos()
+        print("\n- Preprocesando test...")
+        data = preprocesar_datos(data, False)
 
         try:
             os.makedirs('output')
@@ -1247,7 +1252,7 @@ def config():
         # Predecimos
         print("\n- Prediciendo...")
         try:
-            predict()
+            data = predict(data)
             print(Fore.GREEN + "Predicción realizada con éxito" + Fore.RESET)
             # Guardamos el dataframe con la prediccion
             data.to_csv('output/Prediccion.csv', index=False)
