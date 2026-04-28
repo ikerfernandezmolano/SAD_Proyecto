@@ -5,7 +5,7 @@ from collections import Counter
 import time
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL = "gemma2:2b"   # puedes cambiar a llama3.1:8b
+MODEL = "llama3.1:8b"   # puedes cambiar a  gemma2:2b
 
 PROMPT_TEMPLATE = """Clasifica el sentimiento del siguiente comentario sobre una aplicación de música.
 Las únicas etiquetas válidas son: Positivo, Negativo, Neutro.
