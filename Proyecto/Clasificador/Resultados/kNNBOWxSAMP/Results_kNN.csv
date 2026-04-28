@@ -1,6 +1,0 @@
-NombreMod,Precisión,Recall,F_score(macro)
-kNN_k1_p2_wdistance,0.4705,0.4313,0.4364
-kNN_k3_p2_wdistance,0.5038,0.4253,0.4260
-kNN_k5_p2_wdistance,0.5042,0.4106,0.4038
-kNN_k7_p2_wdistance,0.4984,0.3998,0.3868
-kNN_k9_p2_wdistance,0.4799,0.3905,0.3719

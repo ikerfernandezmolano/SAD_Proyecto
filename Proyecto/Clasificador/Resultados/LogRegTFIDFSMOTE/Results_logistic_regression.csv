@@ -1,3 +1,0 @@
-NombreMod,Precisión,Recall,F_score(macro)
-logistic_regression_0.1_None_lbfgs,0.7509,0.7507,0.7503
-logistic_regression_1.0_None_lbfgs,0.8122,0.8105,0.8107

@@ -1,16 +1,16 @@
 {
-    "data_file": "../Datos/Spotify_12345_Test.csv",
+    "data_file": "../Datos/Spotify_12345_Train.csv",
     "sep": ";",
-    "algorithm": "naive_bayes",
+    "algorithm": "random_forest",
     "prediction": "score",
     "f_score": "macro",
-    "model": "output/Modelonaive_bayes.pkl",
+    "model": "output/Modelorandom_forest.pkl",
     "preprocessing": {
         "pnn": true,
-        "sampling": "undersampling",
+        "sampling": "ADASYN",
         "scaler": "zscore",
         "unique_category_threshold": 10,
-        "text_process": "bow",
+        "text_process": "tf-idf",
         "language": "english",
         "impute_num": "median",
         "impute_cat": "mode",
@@ -34,10 +34,10 @@
     },
     "random_forest": {
         "n_estimators": [100, 300, 500],
-        "max_depth": [null, 10, 20, 50],
-        "min_samples_split": [2, 5, 10],
-        "min_samples_leaf": [1, 2, 4],
-        "criterion": ["gini", "entropy"]
+        "max_depth": [null],
+        "min_samples_split": [2],
+        "min_samples_leaf": [1],
+        "criterion": ["gini"]
     },
     "naive_bayes": {
         "alpha": [1e-3,0.1,0.25,0.5,0.75,1.0],

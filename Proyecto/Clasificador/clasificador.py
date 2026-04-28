@@ -21,6 +21,7 @@ from sklearn.model_selection import GridSearchCV
 # Preprocesado
 from sklearn.preprocessing import MaxAbsScaler, MinMaxScaler, StandardScaler, LabelEncoder, Normalizer
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+import emoji, contractions
 # kNN
 from sklearn.neighbors import KNeighborsClassifier
 # Decision Tree
@@ -422,11 +423,17 @@ def simplify_text(text_feature):
     try:
         if text_feature.columns.size > 0:
             for col in text_feature.columns:
+                # Emojis
+                data[col] = data[col].apply(lambda x: emoji.demojize(x))
+
+                # Contracciones
+                data[col] = data[col].apply(lambda x: contractions.fix(x))
+
                 # Minúsculas
                 data[col] = data[col].apply(lambda x: x.lower())
 
                 # Tokenizamos
-                data[col] = data[col].apply(lambda x: RegexpTokenizer(r'\w+').tokenize(x))
+                data[col] = data[col].apply(lambda x: RegexpTokenizer(r'\w+|:\w+:').tokenize(x))
 
                 # Borrar numeros
                 data[col] = data[col].apply(lambda x: [word for word in x if not word.isnumeric()])
