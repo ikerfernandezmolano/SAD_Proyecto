@@ -31,8 +31,8 @@ python3 clasificador.py --json archivo_config.json --mode train/test [-v/--verbo
     "f_score": "macro/micro/weighted",
     "model": "modelo.pkl",
     "preprocessing": {
-        "pnn": true,
-        "sampling": "oversampling/undersampling/SMOTE",
+        "pnn": true/false,
+        "sampling": "oversampling/undersampling/SMOTE/ADASYN",
         "scaler": "minmax/maxabs/zscore/standard",
         "unique_category_threshold": value,
         "text_process": "tf-idf/bow",

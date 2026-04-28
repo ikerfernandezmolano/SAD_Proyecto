@@ -40,10 +40,9 @@ from nltk.tokenize import RegexpTokenizer
 from imblearn.under_sampling import RandomUnderSampler
 from imblearn.over_sampling import RandomOverSampler
 from imblearn.over_sampling import SMOTE
+from imblearn.over_sampling import ADASYN
 # tqdm
 from tqdm import tqdm
-# scipy
-from scipy.sparse import hstack, csr_matrix
 
 global data
 global package
@@ -513,15 +512,17 @@ def sampling():
     if args.mode != "test":
         try:
             if args.preprocessing["sampling"].lower() == "oversampling":
-                sampler = RandomOverSampler(sampling_strategy='minority', random_state=42)
+                sampler = RandomOverSampler(sampling_strategy='auto', random_state=42)
             elif args.preprocessing["sampling"].lower() == "undersampling":
-                sampler = RandomUnderSampler(sampling_strategy='majority', random_state=42)
+                sampler = RandomUnderSampler(sampling_strategy='auto', random_state=42)
             elif args.preprocessing["sampling"].lower() == "smote":
                 sampler = SMOTE(sampling_strategy='auto', random_state=42)
+            elif args.preprocessing["sampling"].lower() == "adasyn":
+                sampler = ADASYN(sampling_strategy='auto', random_state=42)
             else:
-                print(Fore.YELLOW + "No se están realizando oversampling, undersampling o SMOTE" + Fore.RESET)
+                print(Fore.YELLOW + "No se están realizando oversampling, undersampling, SMOTE o ADASYN" + Fore.RESET)
 
-            if args.preprocessing["sampling"].lower() == "oversampling" or args.preprocessing["sampling"].lower() == "smote" or args.preprocessing["sampling"].lower() == "undersampling":
+            if args.preprocessing["sampling"].lower() == "oversampling" or args.preprocessing["sampling"].lower() == "smote" or args.preprocessing["sampling"].lower() == "undersampling" or args.preprocessing["sampling"].lower() == "adasyn":
                 x = data.drop(columns=[args.prediction])
                 y = data[args.prediction]
                 x, y = sampler.fit_resample(x, y)
@@ -530,7 +531,7 @@ def sampling():
                 data = pd.concat([x, y], axis=1)
                 print(Fore.GREEN + f"{args.preprocessing["sampling"]} realizado con éxito" + Fore.RESET)
         except Exception as e:
-            print(Fore.RED + "Error al realizar oversampling, undersampling o SMOTE" + Fore.RESET)
+            print(Fore.RED + "Error al realizar oversampling, undersampling, SMOTE o ADASYN" + Fore.RESET)
             print(e)
             sys.exit(1)
 
@@ -777,9 +778,9 @@ def save_model(gs):
                 elif algorithm.lower() == 'random_forest':
                     nombreMod = f"{algorithm}_nest{params.get('n_estimators')}_depth{params.get('max_depth')}_split{params.get('min_samples_split')}_leaf{params.get('min_samples_leaf')}_criterion{params.get('criterion')}"
                 elif algorithm.lower() == 'naive_bayes':
-                    nombreMod = f"{algorithm}_alpha{params.get('alpha')}"
+                    nombreMod = f"{algorithm}_alpha{params.get('alpha')}_fitprior{params.get('fit_prior')}"
                 elif algorithm.lower() == 'logistic_regression':
-                    nombreMod = f"{algorithm}_{params.get('C')}_{params.get('penalty')}_{params.get('solver')}"
+                    nombreMod = f"{algorithm}_C{params.get('C')}_l1ratio{params.get('l1_ratio')}_solver{params.get('solver')}_maxiter{params.get('max_iter')}"
 
                 # Escribimos los valores correspondientes a esa combinación de parámetros
                 writer.writerow([
@@ -1046,7 +1047,7 @@ def naive_bayes():
         'f1': f'f1_{fscore_param}'
     }
 
-    with tqdm(total=100, desc='Procesando random forest', unit='iter', leave=True) as pbar:
+    with tqdm(total=100, desc='Procesando naive bayes', unit='iter', leave=True) as pbar:
         gs = GridSearchCV(MultinomialNB(), args.naive_bayes, cv=5, n_jobs=args.cpu, scoring=scoring_metrics, refit='f1')
         start_time = time.time()
         gs.fit(x_train, y_train)
