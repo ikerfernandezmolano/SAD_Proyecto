@@ -707,7 +707,7 @@ def calculate_fscore(y_true, y_pred):
     )
 
 def calculate_classification_report(y_true, y_pred):
-    return classification_report(y_true, y_pred, zero_division=0)
+    return classification_report(y_true, y_pred, zero_division=0, digits=4)
 
 # =========================================
 # Funciones comunes para los modelos

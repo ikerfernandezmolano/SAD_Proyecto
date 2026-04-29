@@ -2,13 +2,13 @@
     "data_file1": "../Datos/Spotify_Train.csv",
     "data_file2": "../Datos/Spotify_Dev.csv",
     "sep": ";",
-    "algorithm": "logistic_regression",
+    "algorithm": "naive_bayes",
     "prediction": "score",
     "f_score": "macro",
     "model": "output/Modelologistic_regression.pkl",
     "preprocessing": {
         "pnn": true,
-        "sampling": "ADASYN",
+        "sampling": "undersampling",
         "scaler": "zscore",
         "unique_category_threshold": 10,
         "text_process": "tf-idf",
@@ -41,13 +41,13 @@
         "criterion": ["gini", "entropy"]
     },
     "naive_bayes": {
-        "alpha": [1e-3,0.1,0.25,0.5,0.75,1.0],
+        "alpha": [1e-7,0.0001,0.001,0.01,0.1,0.25,0.5,0.75,1.0],
         "fit_prior": [true, false]
     },
     "logistic_regression": {
         "C": [0.001, 0.01, 0.1, 1, 10, 100],
         "l1_ratio": [0, 1],
         "solver": ["lbfgs", "saga"],
-        "max_iter" : [500,1000]
+        "max_iter" : [500]
     }
 }
