@@ -1,10 +1,11 @@
 {
-    "data_file": "../Datos/AppleMusic_12345.csv",
-    "company_name": "Apple Music",
+    "data_file": "../Datos/Spotify.csv",
+    "company_name": "Spotify",
     "text_column": "review", 
     "sentiment_column": "score",
     "target_sentiment": ["negative", "positive", "neutral"],
     "language": "english",
+    "n_gram": "trigram",
     "lda": {
         "k_min": 2,
         "k_max": 10,
