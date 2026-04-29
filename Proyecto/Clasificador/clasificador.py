@@ -1155,7 +1155,7 @@ def predict(data):
     # Predecimos
     prediction = model['model'].predict(data)
 
-    file = pd.read_csv(args.data_file, encoding='utf-8', sep=args.sep)
+    file = pd.read_csv(args.data_file1, encoding='utf-8', sep=args.sep)
     predict = str(args.prediction).split(":")[1]
     pred_row = file[predict]
     if model['pnn']:
