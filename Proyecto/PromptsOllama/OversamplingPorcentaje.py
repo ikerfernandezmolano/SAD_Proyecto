@@ -57,59 +57,59 @@ def limpiar_parafrases(output: str):
 def construir_prompt(comentarios, etiqueta, num_parafrases):
     texto = "\n".join([f"- {c}" for c in comentarios])
 
-#     return f"""Generate {num_parafrases} paraphrases of the following comments while keeping exactly the same sentiment.
-#
-# IMPORTANT:
-# - Output MUST be in the SAME LANGUAGE as the input comments.
-# - DO NOT translate.
-# - If comments are in English, output must be in English.
-#
-# Sentiment: {etiqueta}
-#
-# Requirements:
-# - Sound like real user reviews.
-# - Do not copy text literally.
-# - Keep the same meaning.
-# - Return ONLY {num_parafrases} lines.
-# - No explanations.
-# - No numbering.
-# - No offensive content.
-#
-# Original comments:
-# {texto}
-# """
-
     return f"""Generate {num_parafrases} paraphrases of the following comments while keeping exactly the same sentiment.
 
 IMPORTANT:
 - Output MUST be in the SAME LANGUAGE as the input comments.
 - DO NOT translate.
+- If comments are in English, output must be in English.
 
 Sentiment: {etiqueta}
 
-Here are examples of good paraphrasing:
-
-Original: "This app is amazing, I love it"
-Paraphrase: "I really enjoy this app, it's fantastic"
-
-Original: "The app crashes all the time"
-Paraphrase: "It keeps crashing constantly, very frustrating"
-
-Original: "It's okay, nothing special"
-Paraphrase: "It's fine but doesn't stand out much"
-
-Now generate paraphrases:
-
 Requirements:
-- Sound natural
-- Keep meaning
-- Do not copy
-- No explanations
-- One sentence per line
+- Sound like real user reviews.
+- Do not copy text literally.
+- Keep the same meaning.
+- Return ONLY {num_parafrases} lines.
+- No explanations.
+- No numbering.
+- No offensive content.
 
 Original comments:
 {texto}
 """
+
+#     return f"""Generate {num_parafrases} paraphrases of the following comments while keeping exactly the same sentiment.
+#
+# IMPORTANT:
+# - Output MUST be in the SAME LANGUAGE as the input comments.
+# - DO NOT translate.
+#
+# Sentiment: {etiqueta}
+#
+# Here are examples of good paraphrasing:
+#
+# Original: "This app is amazing, I love it"
+# Paraphrase: "I really enjoy this app, it's fantastic"
+#
+# Original: "The app crashes all the time"
+# Paraphrase: "It keeps crashing constantly, very frustrating"
+#
+# Original: "It's okay, nothing special"
+# Paraphrase: "It's fine but doesn't stand out much"
+#
+# Now generate paraphrases:
+#
+# Requirements:
+# - Sound natural
+# - Keep meaning
+# - Do not copy
+# - No explanations
+# - One sentence per line
+#
+# Original comments:
+# {texto}
+# """
 
 
 def generar_review_id():
