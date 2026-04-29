@@ -445,8 +445,17 @@ def simplify_text(data, text_feature):
                 # Borrar numeros
                 data[col] = data[col].apply(lambda x: [word for word in x if not word.isnumeric()])
 
+                # Cargar stopwords
+                stop_words = set(stopwords.words(args.preprocessing.get("language", "english")))
+
+                # Palabras que NO quieres eliminar
+                keep_words = {"no", "not"}
+
+                # Eliminar esas palabras de las stopwords
+                stop_words = stop_words - keep_words
+
                 # Borrar stopwords
-                data[col] = data[col].apply(lambda x: [word for word in x if word not in stopwords.words(args.preprocessing.get("language", "english"))])
+                data[col] = data[col].apply(lambda x: [word for word in x if word not in stop_words])
 
                 # Lemmatizar
                 data[col] = data[col].apply(lambda x: [WordNetLemmatizer().lemmatize(word) for word in x])
