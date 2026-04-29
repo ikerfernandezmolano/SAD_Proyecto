@@ -479,9 +479,9 @@ def process_text(data, text_feature, dev):
                 global package
                 if not dev:
                     if args.preprocessing["text_process"] == "tf-idf":
-                        vectorizer = TfidfVectorizer(min_df=5, max_df=0.8)
+                        vectorizer = TfidfVectorizer(min_df=5, max_df=0.8, ngram_range=(1,3))
                     elif args.preprocessing["text_process"] == "bow":
-                        vectorizer = CountVectorizer(min_df=5, max_df=0.8)
+                        vectorizer = CountVectorizer(min_df=5, max_df=0.8, ngram_range=(1,3))
                     else:
                         print(Fore.YELLOW + "No se están tratando los textos" + Fore.RESET)
                         return data
