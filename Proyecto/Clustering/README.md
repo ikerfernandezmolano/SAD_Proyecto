@@ -17,14 +17,14 @@ Para realizar el proceso de clustering y análisis de tópicos (LDA):
 
 ```bash
 source venv/bin/activate
-python3 clustering.py -j archivo_config.json
+python3 clustering.py -j clustering.json
 ```
 
 ## ⚙ Config
 
 ```json
 {
-    "data_file": "../Datos/Spotify_12345.csv",
+    "data_file": "../Datos/datos.csv",
     "company_name": "Nombre_Empresa",
     "text_column": "columna_de_texto", 
     "sentiment_column": "columna_de_puntuacion",
@@ -48,6 +48,8 @@ python3 clustering.py -j archivo_config.json
 - target_sentiment: Lista de sentimientos que se procesarán (ej. ["negative", "positive", "neutral"]).
 
 - language: Idioma para el preprocesamiento de NLTK (eliminación de stopwords).
+
+- n_gram: Nivel de agrupación de palabras. Puede ser "unigram" (palabras sueltas), "bigram" (pares de palabras, ej. apple_music) o "trigram" (grupos de tres).
 
 - lda: Configuración para la búsqueda del número óptimo de tópicos:
 

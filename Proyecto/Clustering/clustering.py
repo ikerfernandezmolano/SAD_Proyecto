@@ -14,6 +14,7 @@ from nltk.stem.wordnet import WordNetLemmatizer
 import gensim.corpora as corpora
 from gensim.models import LdaModel, CoherenceModel
 import matplotlib.pyplot as plt
+from gensim.models import Phrases
 
 # Variables globales
 global data
@@ -99,8 +100,24 @@ def simplify_text():
 def prepare_gensim_corpus():
     """Crea el Diccionario y el Bag of Words que necesita LDA."""
     global data
+    modo_ngram = getattr(args, 'n_gram', 'unigram').lower()
     print("\n- Preparando Diccionario y Corpus para LDA...")
     
+    if modo_ngram in ['bigram', 'trigram']:
+        # 1. Creamos y aplicamos Bigramas
+        bigram_phrases = Phrases(data['tokens'], min_count=5, threshold=10)
+        data['tokens'] = [bigram_phrases[doc] for doc in data['tokens']]
+        
+        if modo_ngram == 'trigram':
+            # 2. Si piden Trigramas, pasamos el modelo otra vez sobre los bigramas
+            trigram_phrases = Phrases(data['tokens'], min_count=5, threshold=10)
+            data['tokens'] = [trigram_phrases[doc] for doc in data['tokens']]
+            print(Fore.GREEN + "Generación de Trigramas completada." + Fore.RESET)
+        else:
+            print(Fore.GREEN + "Generación de Bigramas completada." + Fore.RESET)
+    else:
+        print(Fore.GREEN + "Generación de Unigramas (sin alterar palabras) completada." + Fore.RESET)
+
     # Crea un diccionario con todas las palabras únicas
     id2word = corpora.Dictionary(data['tokens'])
     
@@ -146,7 +163,8 @@ def run_final_model(id2word, corpus, sentiment, optimal_k):
     if not os.path.exists('output'):
         os.makedirs('output')
         
-    folder_path = os.path.join('output', args.company_name)
+    modo_ngram = getattr(args, 'n_gram', 'unigram').lower()
+    folder_path = os.path.join('output', args.company_name, modo_ngram)
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
         
@@ -194,7 +212,9 @@ def calculate_lda_coherence(id2word, corpus, sentiment):
     if not os.path.exists('output'):
         os.makedirs('output')
         
-    folder_path = os.path.join('output', args.company_name)
+    modo_ngram = getattr(args, 'n_gram', 'unigram').lower()
+    folder_path = os.path.join('output', args.company_name, modo_ngram)
+
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
         
