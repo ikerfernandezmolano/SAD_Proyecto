@@ -5,10 +5,10 @@
     "algorithm": "naive_bayes",
     "prediction": "score",
     "f_score": "macro",
-    "model": "output/Modelologistic_regression.pkl",
+    "model": "output/Modelonaive_bayes.sav",
     "preprocessing": {
         "pnn": true,
-        "sampling": "undersampling",
+        "sampling": "SMOTE",
         "scaler": "zscore",
         "unique_category_threshold": 10,
         "text_process": "tf-idf",
@@ -48,6 +48,6 @@
         "C": [0.001, 0.01, 0.1, 1, 10, 100],
         "l1_ratio": [0, 1],
         "solver": ["lbfgs", "saga"],
-        "max_iter" : [500]
+        "max_iter" : [500,1000]
     }
 }

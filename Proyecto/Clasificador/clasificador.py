@@ -724,14 +724,14 @@ def save_model(gs):
     - Exception: Si ocurre algún error al guardar el modelo.
 
     Archivos generados:
-    - output/modelo.pkl: Archivo que contiene el modelo guardado en formato pickle.
+    - output/modelo.sav: Archivo que contiene el modelo guardado en formato pickle.
     - output/modelo.csv: Archivo CSV que contiene los parámetros probados y sus respectivas puntuaciones obtenidas durante la búsqueda de hiperparámetros.
     """
     try:
         package['model'] = gs
         package['unique_category_threshold'] = args.preprocessing.get("unique_category_threshold", 20)
         algorithm = args.algorithm
-        with open(f'output/Modelo{algorithm}.pkl', 'wb') as file:
+        with open(f'output/Modelo{algorithm}.sav', 'wb') as file:
             pickle.dump(package, file)
             print(Fore.CYAN + "Modelo guardado con éxito" + Fore.RESET)
 
@@ -1113,10 +1113,10 @@ def logistic_regression(train, dev):
 
 def load_model():
     """
-    Carga el modelo desde el archivo 'output/modelo.pkl' y lo devuelve.
+    Carga el modelo desde el archivo 'output/modelo.sav' y lo devuelve.
 
     Returns:
-        model: El modelo cargado desde el archivo 'output/modelo.pkl'.
+        model: El modelo cargado desde el archivo 'output/modelo.sav'.
 
     Raises:
         Exception: Si ocurre un error al cargar el modelo.
