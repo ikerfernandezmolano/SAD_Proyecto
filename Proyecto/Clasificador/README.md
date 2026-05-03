@@ -44,12 +44,12 @@ Los archivos generado durante la ejecución del programa serán guardados en la 
 
 ```json
 {
-    "data_file1": "archivoTRAINTEST.csv",
-    "data_file2": "archivoDEV.csv",
+    "data_file1": "ruta_archivoTRAINTEST.csv",
+    "data_file2": "ruta_archivoDEV.csv",
     "algorithm": "kNN/decision_tree/random_forest/naive_bayes/logistic_regression",
     "prediction": "columna_a_predecir",
     "f_score": "macro/micro/weighted",
-    "model": "modelo.sav",
+    "model": "ruta_al_modelo.sav",
     "sep": ";",
     "preprocessing": {
         "pnn": true/false,
@@ -96,5 +96,64 @@ Los archivos generado durante la ejecución del programa serán guardados en la 
         "solver": ["lbfgs", "saga"],
         "max_iter" : [value1, value2, ..., valueN]
     }
+}
+```
+
+**EXPLICACIÓN CAMPOS AMBÍGUOS**
+* "pnn" representa en True la utilización de las clases Positive, Neutral y Negative.
+* "unique_category_threshold" si una columna tiene más valores únicos que este umbral, se trata como texto en lugar de variable categórica
+* "drop_features" columnas que no se quieren tener en cuenta.
+* "kValues" para valores específicos o "valueMin", "valueMax" y "step" para rango.
+* "fit_prior" si se aprenden o no las probabilidades a priori de las clases según su frecuencia en los datos.
+* "l1_ratio" 0 para l2 y 1 para l1.
+
+### EJEMPLO PARA GENERAR EL MEJOR MODELO
+
+```bash
+source venv/bin/activate
+python3 clasificador.py -j config.json -m train -v
+```
+
+```json
+{
+    "data_file1": "../Datos/Spotify_TrainGen.csv",
+    "data_file2": "../Datos/Spotify_Dev.csv",
+    "algorithm": "naive_bayes",
+    "prediction": "score",
+    "f_score": "macro",
+    "model": "ruta_al_modelo.sav",
+    "sep": ";",
+    "preprocessing": {
+        "pnn": true,
+        "sampling": "none",
+        "scaler": "zscore",
+        "unique_category_threshold": 10,
+        "text_process": "tf-idf",
+        "ngram_range": [1, 3],
+        "language": "english",
+        "impute_num": "median",
+        "impute_cat": "mode",
+        "drop_features": ["reviewId", "date"]
+    },
+    "naive_bayes": {
+        "alpha": [0.5],
+        "fit_prior": [false]
+    }
+}
+```
+
+### EJEMPLO PARA PROBAR EL MEJOR MODELO
+
+```bash
+source venv/bin/activate
+python3 clasificador.py -j config.json -m test
+```
+
+```json
+{
+    "data_file1": "../Datos/Spotify_Test.csv",
+    "prediction": "score",
+    "model": "output/Modelonaive_bayes.sav",
+    "sep": ";"
 }
 ```
