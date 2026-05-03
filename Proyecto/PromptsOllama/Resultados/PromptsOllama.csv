@@ -1,0 +1,351 @@
+Modelo,Prompt,Entrada,Salida
+Llama 3.1 8B,"""""""Generate {num_parafrases} paraphrases of the following comments.
+
+IMPORTANT:
+- The sentiment MUST remain strictly NEUTRAL.
+- Do NOT introduce positive or negative tone.
+- Keep the tone balanced, objective, and descriptive.
+- Avoid strong opinions or emotional language.
+
+Language:
+- Output MUST be in the SAME LANGUAGE as the input comments.
+- DO NOT translate.
+- If the original comments are in English, output must be in English.
+
+Requirements:
+- Sound like real user reviews of a music application.
+- Keep meaning similar but not identical.
+- Use simple, neutral wording.
+- Return ONLY {num_parafrases} lines.
+- One paraphrase per line.
+- No explanations.
+- No numbering.
+- No offensive content.
+
+Original comments:
+{texto}
+""""""","awesome app
+very nice
+Ilove it Spotify","There are a few songs I can’t find
+I'd like to see some new songs added
+The lack of music videos really makes this app feel incomplete
+Hopefully they will release more soon
+Music videos are a must-have for me
+I love the selection but missing a few songs would make it better!
+More variety is needed in music choices on the app
+""There's a gap in features, and music videos should be a part of that""
+The ads seem too frequent and could be less intrusive
+I'm hoping for some updates to include music videos soon"
+Llama 3.1 8B,"""""""Classify the sentiment of the following comment about a music app.
+The only valid labels are: Positive, Negative, Neutral.
+Answer only with one of those three words.
+
+Comment: ""{texto}""
+Answer:""""""","good
+super
+nothing but 100% positivity from Spotify
+everything good
+Nice
+best ever
+sad, rip freemium features
+Good
+good it's spotify.... like what else do i say
+it plays music smoothly...
+recently, it goes offline...
+so many ads...
+my lyrics are not showing...
+I liked it...
+this app is bit annoying...
+i love this...
+Good collection
+excellent quality and choice
+This app drives me so crazy...
+nice","Positive
+Positive
+Positive
+Positive
+Positive
+Positive
+Negative
+Positive
+Positive
+Positive
+Negative
+Negative
+Negative
+Positive
+Negative
+Positive
+Positive
+Positive
+Negative
+Positive"
+Llama 3.1 8B,"""""""Classify the sentiment of comments about a music app.
+The only valid labels are: Positive, Negative, Neutral.
+Answer only with one of those three words.
+
+Example:
+Comment: ""I love this app, it works perfectly.""
+Answer: Positive
+
+Now classify this comment:
+Comment: ""{texto}""
+Answer:""""""","good
+super
+nothing but 100% positivity from Spotify
+everything good
+Nice
+best ever
+sad, rip freemium features
+Good
+good it's spotify.... like what else do i say
+it plays music smoothly...
+recently, it goes offline...
+so many ads...
+my lyrics are not showing...
+I liked it...
+this app is bit annoying...
+i love this...
+Good collection
+excellent quality and choice
+This app drives me so crazy...
+nice","Neutral
+Neutral
+Positive
+Neutral
+Neutral
+Positive
+Negative
+Neutral
+Positive
+Positive
+Negative
+Negative
+Negative
+Positive
+Negative
+Positive
+Neutral
+Positive
+Negative
+Neutral"
+Llama 3.1 8B,"""""""Classify the sentiment of comments about a music app.
+The only valid labels are: Positive, Negative, Neutral.
+Answer only with one of those three words.
+
+Examples:
+Comment: ""I love this app, it works perfectly.""
+Answer: Positive
+
+Comment: ""The app keeps crashing and the music stops.""
+Answer: Negative
+
+Comment: ""The app is okay, nothing special.""
+Answer: Neutral
+
+Now classify this comment:
+Comment: ""{texto}""
+Answer:""""""","good
+super
+nothing but 100% positivity from Spotify
+everything good
+Nice
+best ever
+sad, rip freemium features
+Good
+good it's spotify.... like what else do i say
+it plays music smoothly...
+recently, it goes offline...
+so many ads...
+my lyrics are not showing...
+I liked it...
+this app is bit annoying...
+i love this...
+Good collection
+excellent quality and choice
+This app drives me so crazy...
+nice","Positive
+Positive
+Positive
+Positive
+Neutral
+Positive
+Negative
+Positive
+Positive
+Positive
+Negative
+Negative
+Negative
+Positive
+Negative
+Positive
+Neutral
+Positive
+Negative
+Positive"
+Llama 3.1 8B,"Clasifica el sentimiento del siguiente comentario sobre una aplicación.
+Las únicas opciones válidas son: Positivo, Negativo, Neutro.
+Responde únicamente con una de esas tres palabras.
+
+Comentario: ""{texto}""",Why are there songs that I can't play when I'm watching ads. And there are sooo many ads,Negativo
+Llama 3.1 8B,"Clasifica el sentimiento del siguiente comentario sobre una aplicación.
+Las únicas opciones válidas son: Positivo, Negativo, Neutro.
+Responde únicamente con una de esas tres palabras.
+
+Comentario: ""{texto}""",bring back the mini plan,Positivo
+Llama 3.1 8B,"Clasifica el sentimiento del siguiente comentario sobre una aplicación.
+Las únicas opciones válidas son: Positivo, Negativo, Neutro.
+Responde únicamente con una de esas tres palabras.
+
+Comentario: ""{texto}""","many design mistakes, features not available worldwide even with premium, other than that, decent music app.",Negativo
+Llama 3.1 8B,"Clasifica el sentimiento del siguiente comentario sobre una aplicación.
+Las únicas etiquetas válidas son: Negativo, Neutro y Positivo. Hazlo en base a los ejemplos que te proporciono.
+Responde únicamente con una de esas tres palabras.
+
+Comentario: ""Comentario Negativo""
+Respuesta: Negativo
+
+Comentario: ""Comentario Neutro""
+Respuesta: Neutro
+
+Comentario: ""Comentario Positivo""
+Respuesta: Positivo
+
+Comentario test: ""{texto}""
+Respuesta:","Comentario: ""everytime I am trying choose any song it is showing 'explore premium' why this is happening?? this is happening again and again""
+Respuesta:Negativo
+
+Comentario: ""it won't let me tap the device broadcast status in settings keeps saying loading pls fix it""
+Respuesta: Neutro
+
+Comentario: ""The best music experience, better than any other apps that exist in the play store. I cannot tell why is it better just share a fact that I took its (the only app) plan just after completing it's free trial....""
+Respuesta: Positivo
+
+Comentario test: ""You should tell us or give us a demonstration for when you open the app for the first time after an update. And don't bother with the ""find out what's new thing"" like other apps just have a pop up that says we've changed this ""..."". I was getting so annoyed that I couldn't delete from the queue. Took me ages to figure out you now have to slide left.""
+Respuesta:",Positivo
+Llama 3.1 8B,"Clasifica el sentimiento del siguiente comentario sobre una aplicación.
+Las únicas etiquetas válidas son: Negativo, Neutro y Positivo. Hazlo en base a los ejemplos que te proporciono.
+Responde únicamente con una de esas tres palabras.
+
+Comentario: ""Comentario Negativo""
+Respuesta: Negativo
+
+Comentario: ""Comentario Neutro""
+Respuesta: Neutro
+
+Comentario: ""Comentario Positivo""
+Respuesta: Positivo
+
+Comentario test: ""{texto}""
+Respuesta:","Comentario: ""everytime I am trying choose any song it is showing 'explore premium' why this is happening?? this is happening again and again""
+Respuesta:Negativo
+
+Comentario: ""it won't let me tap the device broadcast status in settings keeps saying loading pls fix it""
+Respuesta: Neutro
+
+Comentario: ""The best music experience, better than any other apps that exist in the play store. I cannot tell why is it better just share a fact that I took its (the only app) plan just after completing it's free trial....""
+Respuesta: Positivo
+
+Comentario test: ""Who thought changing the navigation UI was a good idea?? Especially adding such a mundane feature to add a playlist??""
+Respuesta:",Negativo
+Llama 3.1 8B,"Genera 10 paráfrasis de los siguientes comentarios manteniendo exactamente el mismo sentimiento. Solo no utilices contenido ofensivo
+El sentimiento es: {etiqueta}
+
+Requisitos:
+- Deben sonar como opiniones reales de usuarios.
+- No copies literalmente la frase.
+- Conserva el significado general.
+- Devuelve solo 10 líneas, una paráfrasis por línea.
+
+Comentarios originales: ""{texto}""","Sentimiento Negativo
+
+Comentario 1: while listening song an ad will come and say enjoy the next 30 minutes of uninterrupted listening and after 1 song another ad will appearðŸ˜¡
+Comentario 2: Getting worst Day by day Too many ads, can't play a specific part of the song, can't play previous songs(the option has been disabled for non premium users), can't shuffle play the playlist, can't listen songs on loop, can't see lyrics for most songs(everything has been shifted to premium). Does anyone has a better alternative for this.
+Comentario 3: match the audio quality or make it better than apple music please
+Comentario 4: This is ridiculous, I can't choose the songs I'd like to play, I can't even play them in order of the playlists, random stuff keeps getting mixed in. You say you want us Spotify users to have a great experience with this app yet this is absolute BS. All you care about is money, at this rate, you might lose all your users. Spotify used to let us do whatever we like, that was a great experience, not this. If you REALLY want money, pull an Ao3. Ask for donations, you'll probably get a few bucks.
+Comentario 5: For me this app is going to far, not only that it has ads but I can't even play the songs, and when I play on the song it said I need to pay for premium, like why do we need to pay for everything when we just wanna listen to music? in my opinion Spotify is the not the worst but also not the best","1.	Me molesta cuando un anuncio interrumpe mi escucha de música y luego otro se presenta apenas después.
+2.	El servicio ha empeorado día a día con demasiados anuncios que me impiden disfrutar de la música como quiero.
+3.	La calidad de audio de esta aplicación debería ser mejor que la de Apple Music, al menos.
+4.	Me frustra no poder seleccionar las canciones que quiero escuchar ni reproducirlas en orden de playlist.
+5.	Para mí, esta aplicación ha ido demasiado lejos con los anuncios y ahora incluso me pide pagar para escuchar música.
+6.	El aumento de anuncios está haciendo que el servicio se vuelva insoportable.
+7.	Me gustaría poder reproducir las canciones en bucle o cambiar la lista de reproducción sin restricciones.
+8.	La aplicación debería ofrecer más opciones y permitirnos personalizar nuestra experiencia de usuario.
+9.	Me molesta que no pueda escuchar la música mientras estoy haciendo otras cosas, gracias a los anuncios interminables.
+10.	Creo que el servicio ha perdido su esencia original y ahora se enfoca demasiado en ganar dinero."
+gemma2:2b,"Clasifica el sentimiento del siguiente comentario sobre una aplicación.
+Las únicas etiquetas válidas son: Negativo, Neutro y Positivo. Hazlo en base a los ejemplos que te proporciono.
+Responde únicamente con una de esas tres palabras.
+
+Comentario: ""Comentario Negativo""
+Respuesta: Negativo
+
+Comentario: ""Comentario Neutro""
+Respuesta: Neutro
+
+Comentario: ""Comentario Positivo""
+Respuesta: Positivo
+
+Comentario test: ""{texto}""
+Respuesta:","Comentario: ""everytime I am trying choose any song it is showing 'explore premium' why this is happening?? this is happening again and again""
+Respuesta:Negativo
+
+Comentario: ""it won't let me tap the device broadcast status in settings keeps saying loading pls fix it""
+Respuesta: Neutro
+
+Comentario: ""The best music experience, better than any other apps that exist in the play store. I cannot tell why is it better just share a fact that I took its (the only app) plan just after completing it's free trial....""
+Respuesta: Positivo
+
+Comentario test: ""You should tell us or give us a demonstration for when you open the app for the first time after an update. And don't bother with the ""find out what's new thing"" like other apps just have a pop up that says we've changed this ""..."". I was getting so annoyed that I couldn't delete from the queue. Took me ages to figure out you now have to slide left.""
+Respuesta:",Neutro
+gemma2:2b,"Clasifica el sentimiento del siguiente comentario sobre una aplicación.
+Las únicas etiquetas válidas son: Negativo, Neutro y Positivo. Hazlo en base a los ejemplos que te proporciono.
+Responde únicamente con una de esas tres palabras.
+
+Comentario: ""Comentario Negativo""
+Respuesta: Negativo
+
+Comentario: ""Comentario Neutro""
+Respuesta: Neutro
+
+Comentario: ""Comentario Positivo""
+Respuesta: Positivo
+
+Comentario test: ""{texto}""
+Respuesta:","Comentario: ""everytime I am trying choose any song it is showing 'explore premium' why this is happening?? this is happening again and again""
+Respuesta:Negativo
+
+Comentario: ""it won't let me tap the device broadcast status in settings keeps saying loading pls fix it""
+Respuesta: Neutro
+
+Comentario: ""The best music experience, better than any other apps that exist in the play store. I cannot tell why is it better just share a fact that I took its (the only app) plan just after completing it's free trial....""
+Respuesta: Positivo
+
+Comentario test: ""Who thought changing the navigation UI was a good idea?? Especially adding such a mundane feature to add a playlist??""
+Respuesta:",Negativo
+gemma2:2b,"Genera 10 paráfrasis de los siguientes comentarios manteniendo exactamente el mismo sentimiento. Solo no utilices contenido ofensivo
+El sentimiento es: {etiqueta}
+
+Requisitos:
+- Deben sonar como opiniones reales de usuarios.
+- No copies literalmente la frase.
+- Conserva el significado general.
+- Devuelve solo 10 líneas, una paráfrasis por línea.
+
+Comentarios originales: ""{texto}""","Sentimiento Negativo
+
+Comentario 1: while listening song an ad will come and say enjoy the next 30 minutes of uninterrupted listening and after 1 song another ad will appearðŸ˜¡
+Comentario 2: Getting worst Day by day Too many ads, can't play a specific part of the song, can't play previous songs(the option has been disabled for non premium users), can't shuffle play the playlist, can't listen songs on loop, can't see lyrics for most songs(everything has been shifted to premium). Does anyone has a better alternative for this.
+Comentario 3: match the audio quality or make it better than apple music please
+Comentario 4: This is ridiculous, I can't choose the songs I'd like to play, I can't even play them in order of the playlists, random stuff keeps getting mixed in. You say you want us Spotify users to have a great experience with this app yet this is absolute BS. All you care about is money, at this rate, you might lose all your users. Spotify used to let us do whatever we like, that was a great experience, not this. If you REALLY want money, pull an Ao3. Ask for donations, you'll probably get a few bucks.
+Comentario 5: For me this app is going to far, not only that it has ads but I can't even play the songs, and when I play on the song it said I need to pay for premium, like why do we need to pay for everything when we just wanna listen to music? in my opinion Spotify is the not the worst but also not the best","I keep getting interrupted by ads while trying to enjoy music, which makes listening frustrating.
+The app keeps getting worse with more and more ads popping up, making it impossible to focus on the songs I like.
+The audio quality is lacking compared to other services like Apple Music, leaving me feeling disappointed.
+My favorite features are being removed! It's no longer enjoyable to play music the way I used to; playlists and order don't work properly now.
+I feel ripped off by the ads and forced to pay extra just to listen to music without interruption.
+It's frustrating that I can’t skip songs or shuffle through playlists, making it an unenjoyable experience.
+The lack of features is disheartening; you can't even enjoy songs in order anymore!
+Honestly, the app feels like a constant money-grabbing scheme, and I worry about losing users if this continues.
+I remember when Spotify was user-friendly and didn’t feel so greedy, but now it just makes me question the value of the service.
+My experience is becoming increasingly negative with ads and restrictions on how to play music; I'm feeling uninspired by the direction of the app."
