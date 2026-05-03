@@ -155,5 +155,6 @@ python3 clasificador.py -j config.json -m test
     "prediction": "score",
     "model": "output/Modelonaive_bayes.sav",
     "sep": ";"
+    "preprocessing": {}
 }
 ```
