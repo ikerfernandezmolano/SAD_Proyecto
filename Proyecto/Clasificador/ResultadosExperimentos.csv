@@ -1,0 +1,61 @@
+ALGORITMO;HIPERPARÁMETROS;PosNegNeu;TEXT-PROCESS;BALANCEO;NGRAM;PRECISION;RECALL;FSCORE
+naive_bayes;alpha= 0.5, fitPrior=false;True;TF-IDF;LLM augmentation;(1, 3);0.6116;0.6267;0.6160
+naive_bayes;alpha=0.1, fitPrior=true;True;BOW;LLM augmentation;(1, 2);0.6157;0.6095;0.6122
+logistic_regression;C=1 , penalty=l2  , max_iter=500 , solver=lbfgs;True;BOW;None;(1, 3);0.6345;0.6015;0.6083
+naive_bayes;alpha=0.5 , fitPrior=false;True;TF-IDF;None;(1, 3);0.6022;0.6104;0.6058
+naive_bayes;alpha=0.25 , fitPrior=true;True;BOW;None;(1, 3);0.6110;0.6015;0.6053
+logistic_regression;C=1 , penalty=l2  , max_iter=500 , solver=lbfgs;True;BOW;LLM augmentation;(1, 3);0.6165;0.5966;0.6023
+naive_bayes;alpha=1e-07 , fitPrior=true;True;TF-IDF;SMOTE;(1, 1);0.5987;0.6314;0.5977
+logistic_regression;C=10 , penalty=l2  , max_iter=500 , solver=lbfgs;True;TF-IDF;None;(1, 3);0.6157;0.5954;0.5959
+naive_bayes;alpha=1e-07 , fitPrior=false;True;TF-IDF;ADASYN;(1, 1); 0.5969;0.6271;0.5954
+naive_bayes;alpha=0.25 , fitPrior=true;True;BOW;SMOTE;(1, 1);0.5904;0.6085;0.5945
+logistic_regression;C=10 , penalty=l2 , max_iter= 500, solver=lbfgs;True;TF-IDF;LLM augmentation;(1, 3);0.5993;0.5920;0.5925
+naive_bayes;alpha=0.1 , fitPrior=true;True;BOW;ADASYN;(1, 1);0.5873;0.6072;0.5924
+logistic_regression;C=1 , penalty =l2  , max_iter=500 , solver=lbfgs;True;BOW;SMOTE;(1, 1); 0.5863;0.5999;0.5916
+logistic_regression;C=1, penalty = l2, max_iter=200, solver=lbfgs;True;BOW;ADASYN;(1, 1);0.5880;0.5950;0.5895
+logistic_regression;C=100 , penalty = 0 , max_iter=500 , solver=lbfgs;True;TF-IDF;SMOTE;(1, 1);0.5835;0.5881;0.5847
+logistic_regression;C=0.1 , penalty=l2  , max_iter=500 , solver=lbfgs;True;BOW;Undersampling;(1, 1);0.5978;0.6133;0.5777
+random_forest;NEstim=500 , MaxDepth=None , MinSampSplit=10 , MinSampLeaf=2 , criterion=entropy;True;TF-IDF;Undersampling;(1, 1);0.5861;0.6080;0.5707
+random_forest;NEstim=100 , MaxDepth=None , MinSampSplit=2 , MinSampLeaf=2 , criterion=gini;True;BOW;Undersampling;(1, 1);0.5862;0.5973;0.5705
+decision_tree;MaxDepth=None , MinSampSplit=2 , MinSampLeaf=1 , criterion=gini;True;TF-IDF;SMOTE;(1, 1);0.5639;0.5756;0.5681
+random_forest;NEstim=200, MaxDepth=None, MinSampSplit=5, MinSampLeaf=1, criterion=gini;True;TF-IDF;ADASYN;(1, 1);0.5810;0.5850;0.5680
+logistic_regression;C=1 , penalty=l2  , max_iter=500 , solver=lbfgs;True;TF-IDF;Undersampling;(1, 1);0.5949;0.6128;0.5673
+decision_tree;MaxDepth=none , MinSampSplit= 2, MinSampLeaf= 2, criterion=gini;True;BOW;LLM augmentation;(1, 3);0.5619;0.5692;0.5650
+decision_tree;MaxDepth=None , MinSampSplit=2 , MinSampLeaf=1 , criterion=gini;True;TF-IDF;ADASYN;(1, 1);0.5620;0.5695;0.5649
+logistic_regression;C=100 , penalty=l1  , max_iter=500 , solver=saga;True;TF-IDF;ADASYN;(1, 1); 0.5686;0.5753;0.5647
+random_forest;NEstim=300 , MaxDepth=None , MinSampSplit=10 , MinSampLeaf=1 , criterion=entropy;True;BOW;ADASYN;(1, 1);0.5569;0.5838;0.5630
+random_forest;NEstim=300 , MaxDepth=none, MinSampSplit=5 , MinSampLeaf=1 , criterion=gini;True;BOW;LLM augmentation;(1, 3);0.5444;0.5816;0.5624
+naive_bayes;alpha=1.0 , fitPrior=true;True;BOW;Undersampling;(1, 1);0.5949;0.5952;0.5609
+random_forest;NEstim=300 , MaxDepth=None , MinSampSplit=5 , MinSampLeaf=1 , criterion=gini;True;BOW;None;(1, 3);0.5425;0.5799;0.5605
+random_forest;NEstim=100 , MaxDepth=None , MinSampSplit=10 , MinSampLeaf=1 , criterion=gini;True;BOW;SMOTE;(1, 1);0.5534;0.5777;0.5595
+random_forest;NEstim=100 , MaxDepth=none , MinSampSplit=2 , MinSampLeaf=1 , criterion=entropy;True;TF-IDF;LLM augmentation;(1, 3);0.6477;0.5735;0.5582
+random_forest;NEstim=500 , MaxDepth=None , MinSampSplit=2 , MinSampLeaf=1 , criterion=entropy ;True;TF-IDF;SMOTE;(1, 1);0.5888;0.5762;0.5572
+random_forest;NEstim=300 , MaxDepth=None , MinSampSplit=5 , MinSampLeaf=1 , criterion=entropy;True;TF-IDF;None;(1, 3);0.5394;0.5749;0.5566
+decision_tree;MaxDepth=50 , MinSampSplit=2 , MinSampLeaf=2 , criterion=gini;True;TF-IDF;None;(1, 3);0.5627;0.5490;0.5511
+naive_bayes;alpha=0.75 , fitPrior=true;True;TF-IDF;Undersampling;(1, 1);0.5749;0.5901;0.5424
+decision_tree;MaxDepth=50 , MinSampSplit=10 , MinSampLeaf=1 , criterion=gini;True;BOW;None;(1, 3);0.5481;0.5464;0.5419
+decision_tree;MaxDepth=none , MinSampSplit=5 , MinSampLeaf= 1, criterion=gini;True;TF-IDF;LLM augmentation;(1, 3);0.5439;0.5408;0.5419
+decision_tree;MaxDepth=None , MinSampSplit=10 , MinSampLeaf=1 , criterion=entropy;True;BOW;ADASYN;(1, 1);0.5114;0.5306;0.5120
+decision_tree;MaxDepth=None , MinSampSplit=5 , MinSampLeaf=1 , criterion=entropy;True;BOW;SMOTE;(1, 1);0.5127;0.5296;0.5088
+decision_tree;MaxDepth=None , MinSampSplit=10 , MinSampLeaf=1 , criterion=entropy;True;BOW;Undersampling;(1, 1);0.5355;0.5377;0.5042
+decision_tree;MaxDepth=None , MinSampSplit=5 , MinSampLeaf=1 , criterion=gini;True;TF-IDF;Undersampling;(1, 1);0.5204;0.5129;0.4902
+kNN;k=13 , p=2 , weights=uniform;True;TF-IDF;Undersampling;(1, 1);0.5010;0.5002;0.4800
+kNN;k= 5, p=2, weights=distance;True;TF-IDF;ADASYN;(1, 1);0.4750;0.4690;0.4620
+kNN;k= 1, p=2 , weights=uniform;True;TF-IDF;LLM augmentation;(1, 3);0.4654;0.4508;0.4554
+kNN;k=1 , p=2 , weights=uniform;True;TF-IDF;None;(1, 3);0.4627;0.4478;0.4525
+kNN;k=1 , p=1 , weights=uniform;True;BOW;SMOTE;(1, 1);0.4661;0.4730;0.4515
+kNN;k=5, p=2, weights=uniform;True;BOW;ADASYN;(1, 1);0.4520;0.4480;0.4350
+kNN;k=1 , p=2 , weights=uniform;True;BOW;None;(1, 3);0.4302;0.4292;0.4297
+kNN;k=1 , p=1 , weights=uniform;True;TF-IDF;SMOTE;(1, 1);0.4385;0.4256;0.4295
+kNN;k= 1, p=2, weights=uniform;True;BOW;LLM augmentation;(1, 3);0.4540;0.4195;0.4232
+kNN;k=3 , p=2 , weights=distance;True;BOW;Undersampling;(1, 1);0.4456;0.4396;0.4109
+naive_bayes;alpha= 0.5, fitPrior=true;False;BOW;LLM augmentation;(1, 3);0.4142;0.4002;0.4023
+naive_bayes;alpha=0.5 , fitPrior=false;False;TF-IDF;LLM augmentation;(1, 3);0.3923;0.3924;0.3914
+logistic_regression;C= 1, penalty=l2  , max_iter=500 , solver=lbfgs;False;BOW;LLM augmentation;(1, 3);0.4006;0.3880;0.3885
+logistic_regression;C=10 , penalty=l2 , max_iter=500 , solver=lbfgs;False;TF-IDF;LLM augmentation;(1, 3);0.4005;0.3881;0.3877
+decision_tree;MaxDepth=50 , MinSampSplit=2 , MinSampLeaf=2 , criterion=gini;False;TF-IDF;LLM augmentation;(1, 3);0.3733;0.3664;0.3670
+decision_tree;MaxDepth= 50, MinSampSplit=2 , MinSampLeaf= 4, criterion=entropy;False;BOW;LLM augmentation;(1, 3);0.3862;0.3638;0.3655
+random_forest;NEstim= 100, MaxDepth=none , MinSampSplit= 2, MinSampLeaf= 1, criterion=gini;False;BOW;LLM augmentation;(1, 3);0.3279;0.3591;0.3286
+random_forest;NEstim= 100, MaxDepth= none, MinSampSplit=2 , MinSampLeaf= 1, criterion=gini;False;TF-IDF;LLM augmentation;(1, 3);0.3637;0.3583;0.3284
+kNN;k= , p= , weights=;False;TF-IDF;LLM augmentation;(1, 3);0.2885;0.2835;0.2841
+kNN;k= 1, p=2 , weights=uniform;False;BOW;LLM augmentation;(1, 3);0.2792;0.2613;0.2615
