@@ -582,8 +582,17 @@ def drop_features(data):
     - Ninguno
     """
     try:
-        if args.preprocessing["drop_features"] != []:
-            for column in args.preprocessing["drop_features"]:
+        if args.mode == "train":
+            drop_features = args.preprocessing["drop_features"]
+            package["drop_features"] = args.preprocessing["drop_features"]
+        elif args.mode == "test":
+            drop_features = model["drop_features"]
+        else:
+            print(Fore.RED + "Modo no soportado" + Fore.RESET)
+            sys.exit(1)
+
+        if  drop_features != []:
+            for column in drop_features:
                 if column not in data.columns:
                     print(Fore.YELLOW+f"La columna {column} no existe en el dataset"+Fore.RESET)
                 else:
@@ -591,6 +600,8 @@ def drop_features(data):
             print(Fore.GREEN+f"Columnas eliminadas"+Fore.RESET)
         else:
             print(Fore.YELLOW+"No se han especificado columnas a eliminar"+Fore.RESET)
+
+
         return data
     except Exception as e:
         print(Fore.RED+"Error al eliminar columnas"+Fore.RESET)
