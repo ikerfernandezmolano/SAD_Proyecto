@@ -57,6 +57,7 @@ Los archivos generado durante la ejecución del programa serán guardados en la 
         "scaler": "minmax/maxabs/zscore/standard",
         "unique_category_threshold": value,
         "text_process": "tf-idf/bow",
+        "ngram_range": [value1, value2],
         "language": "language",
         "impute_num": "mean/mode/median/constant/delete",
         "impute_cat": "mode/constant/delete",
