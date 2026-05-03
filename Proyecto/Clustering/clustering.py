@@ -130,6 +130,46 @@ def prepare_gensim_corpus():
     print(Fore.GREEN + f"Diccionario creado con {len(id2word)} palabras clave únicas." + Fore.RESET)
     return id2word, corpus
 
+
+def visualize_topic_keywords(lda_model, num_topics, no_top_words=10, filename="barras_probabilidad.png"):
+    """
+    Genera gráficos de barras horizontales que muestran la probabilidad de las palabras 
+    más representativas para cada tópico generado por el modelo LDA.
+    """
+    # Crear una figura con subgráficos (uno por cada tópico)
+    fig, axes = plt.subplots(1, num_topics, figsize=(5 * num_topics, 6), sharex=True)
+    
+    # Asegurar que 'axes' sea iterable incluso si el modelo óptimo solo tiene 1 tópico
+    if num_topics == 1:
+        axes = [axes]
+    else:
+        axes = axes.flatten()
+
+    for topic_idx in range(num_topics):
+        # Extraer las palabras principales y sus probabilidades del modelo LDA
+        top_features = lda_model.show_topic(topic_idx, topn=no_top_words)
+        
+        words = [word for word, prob in top_features]
+        probs = [prob for word, prob in top_features]
+
+        ax = axes[topic_idx]
+        # Crear gráfico de barras horizontales
+        ax.barh(words, probs, color='#f8766d', height=0.8)
+        ax.set_title(f'Tópico {topic_idx}', fontdict={'fontsize': 14, 'fontweight': 'bold'})
+        
+        # Invertir el eje Y para que la palabra con mayor probabilidad aparezca en la parte superior
+        ax.invert_yaxis() 
+        ax.tick_params(axis='both', which='major', labelsize=12)
+        
+        # Añadir una cuadrícula en el eje X para facilitar la lectura de las probabilidades
+        ax.grid(axis='x', linestyle='--', alpha=0.7)
+
+    plt.tight_layout()
+    plt.savefig(filename)
+    print(Fore.GREEN + f"\nGráfico de probabilidades guardado en: {filename}" + Fore.RESET)
+    plt.close()
+
+
 def run_final_model(id2word, corpus, sentiment, optimal_k):
     """Entrena el modelo final y exporta los resultados clasificados."""
     global data
@@ -172,6 +212,9 @@ def run_final_model(id2word, corpus, sentiment, optimal_k):
     columnas_finales = [args.text_column, args.sentiment_column, 'Topico_Dominante', 'Porcentaje_Similitud']
     data[columnas_finales].to_csv(output_csv, sep=';', index=False, encoding='utf-8')
     
+    ruta_grafico_probabilidades = os.path.join(folder_path, f'barras_probabilidad_{sentiment}.png')
+    visualize_topic_keywords(lda_model=final_model, num_topics=optimal_k, no_top_words=10, filename=ruta_grafico_probabilidades)
+
     print(Fore.GREEN + f"\nProceso finalizado. Exportación generada en: {output_csv}" + Fore.RESET)
 
 
@@ -241,7 +284,14 @@ if __name__ == "__main__":
         simplify_text()
         # 3. Preparar formato LDA
         id2word, corpus = prepare_gensim_corpus()
-        # 4. Calcular y graficar K óptimo
-        k_ganador = calculate_lda_coherence(id2word, corpus, sentiment)
-        # 5. Entrenar modelo final y exportar resultados
+        # 4. Calcular y graficar K óptimo (nos devuelve el pico matemático)
+        k_automatico = calculate_lda_coherence(id2word, corpus, sentiment)
+        # 5. Lógica de decisión: ¿Automático o Manual?
+        if hasattr(args, 'k_optimo') and sentiment in args.k_optimo:
+            k_ganador = args.k_optimo[sentiment]
+            print(Fore.MAGENTA + f"\n[INFO] Forzando K={k_ganador} definido manualmente en el JSON." + Fore.RESET)
+        else:
+            k_ganador = k_automatico
+            print(Fore.MAGENTA + f"\n[INFO] Usando K={k_ganador} automático (mejor coherencia)." + Fore.RESET)
+        # 6. Entrenar modelo final y exportar resultados
         run_final_model(id2word, corpus, sentiment, k_ganador)

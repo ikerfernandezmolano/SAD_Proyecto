@@ -6,6 +6,11 @@
     "target_sentiment": ["negative", "positive", "neutral"],
     "language": "english",
     "n_gram": "trigram",
+    "k_optimo": {
+        "negative": 4,
+        "positive": 3,
+        "neutral": 3
+    },
     "lda": {
         "k_min": 2,
         "k_max": 10,

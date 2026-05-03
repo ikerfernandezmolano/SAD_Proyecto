@@ -30,6 +30,12 @@ python3 clustering.py -j clustering.json
     "sentiment_column": "columna_de_puntuacion",
     "target_sentiment": ["negative", "positive", "neutral"],
     "language": "english/spanish",
+    "n_gram": "n_gram",
+    "k_optimo": {
+        "negative": k_optimo_negative,
+        "positive": k_optimo_positive,
+        "neutral": k_optimo_neutral
+    },
     "lda": {
         "k_min": valueMin,
         "k_max": valueMax,
