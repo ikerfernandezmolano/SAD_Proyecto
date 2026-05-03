@@ -1,53 +1,54 @@
 {
-    "data_file1": "../Datos/Spotify_Train.csv",
-    "data_file2": "../Datos/Spotify_Dev.csv",
+    "data_file1": "archivoTRAINTEST.csv",
+    "data_file2": "archivoDEV.csv",
+    "algorithm": "kNN/decision_tree/random_forest/naive_bayes/logistic_regression",
+    "prediction": "columna_a_predecir",
+    "f_score": "macro/micro/weighted",
+    "model": "modelo.sav",
     "sep": ";",
-    "algorithm": "naive_bayes",
-    "prediction": "score",
-    "f_score": "macro",
-    "model": "output/Modelonaive_bayes.sav",
     "preprocessing": {
-        "pnn": true,
-        "sampling": "SMOTE",
-        "scaler": "zscore",
-        "unique_category_threshold": 10,
-        "text_process": "tf-idf",
-        "language": "english",
-        "impute_num": "median",
-        "impute_cat": "mode",
-        "drop_features": ["reviewId"]
+        "pnn": true/false,
+        "sampling": "none/oversampling/undersampling/SMOTE/ADASYN",
+        "scaler": "minmax/maxabs/zscore/standard",
+        "unique_category_threshold": value,
+        "text_process": "tf-idf/bow",
+        "ngram_range": (value1, value2),
+        "language": "language",
+        "impute_num": "mean/mode/median/constant/delete",
+        "impute_cat": "mode/constant/delete",
+        "drop_features": ["campo1", "campo2", ..., "campoN"]
     },
     "kNN": {
         "k": {
-            "kValues" : [],
-            "valueMin": 1,
-            "valueMax": 13,
-            "step": 2
+            "kValues" : [value1, value2, ..., valueN],
+            "valueMin": valueMin,
+            "valueMax": valueMax,
+            "step": valueStep
         },
         "weights": ["uniform","distance"],
         "p": [1,2]
     },
     "decision_tree": {
-        "max_depth": [null, 10, 20, 50],
-        "min_samples_split": [2, 5, 10],
-        "min_samples_leaf": [1, 2, 4],
+        "max_depth": [value1, value2, ..., valueN],
+        "min_samples_split": [value1, value2, ..., valueN],
+        "min_samples_leaf": [value1, value2, ..., valueN],
         "criterion": ["gini", "entropy"]
     },
     "random_forest": {
-        "n_estimators": [100, 300, 500],
-        "max_depth": [null, 10, 20, 50],
-        "min_samples_split": [2, 5, 10],
-        "min_samples_leaf": [1, 2, 4],
+        "n_estimators": [value1, value2, ..., valueN],
+        "max_depth": [value1, value2, ..., valueN],
+        "min_samples_split": [value1, value2, ..., valueN],
+        "min_samples_leaf": [value1, value2, ..., valueN],
         "criterion": ["gini", "entropy"]
     },
     "naive_bayes": {
-        "alpha": [1e-7,0.0001,0.001,0.01,0.1,0.25,0.5,0.75,1.0],
+        "alpha": [value1, value2, ..., valueN],
         "fit_prior": [true, false]
     },
     "logistic_regression": {
-        "C": [0.001, 0.01, 0.1, 1, 10, 100],
-        "l1_ratio": [0, 1],
+        "C": [value1, value2, ..., valueN],
+        "l1_ratio": [0,1],
         "solver": ["lbfgs", "saga"],
-        "max_iter" : [500,1000]
+        "max_iter" : [value1, value2, ..., valueN]
     }
 }

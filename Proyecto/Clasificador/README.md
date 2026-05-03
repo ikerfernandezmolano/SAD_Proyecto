@@ -1,4 +1,4 @@
-# SAD_Proyecto
+# COACHELLA CLASIFICADOR
 
 ## 🧾 Preparación del entorno
 
@@ -12,27 +12,48 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+De esta manera, se instalarán las librerías necesarias para la ejecución del programa.
+
+Para cerrar el entorno virtual:
+
+```bash
+deactivate
+```
+
 ## ▶️ Ejecución del entorno
 
-Para utilizar la plantilla de entrenamiento:
+Para utilizar la plantilla:
 
 ```bash
 source venv/bin/activate
-python3 clasificador.py --json archivo_config.json --mode train/test [-v/--verbose] [-c/--cpu valor]
+python3 clasificador.py -j/--json archivo_config.json -m/--mode train/test [-v/--verbose] [-c/--cpu valor]
 ```
+
+* -j o --json, será la ruta al archivo de configuración de tipo JSON, del cual más abajo se encuentra una plantilla.
+* -m o --mode, servirá para especificar el modo en el que se quiere utilizar la plantilla. Train, para generar modelos 
+(En el JSON deberán estar indicados 2 archivos csv, el train y el dev). Test, para probar el modelo generado 
+(En el JSON deberá especificarse en data_file1 la ruta al archivo csv a predecir y en el campo model deberá especificarse
+la ruta para el archivo .sav)
+* -v o --verbose, durante el Train mostrará información relativa al modelo generado, así como, la matriz de confusión 
+, entre otros datos.
+* -c o --cpu, servirá para especificar el número de núcleos que se quieren utilizar durante la ejecución.
+
+Los archivos generado durante la ejecución del programa serán guardados en la carpeta output/ en la misma ubicación donde se encuentre el clasificador.py.
 
 ## ⚙ Config
 
 ```json
 {
-    "data_file": "archivo.csv",
+    "data_file1": "archivoTRAINTEST.csv",
+    "data_file2": "archivoDEV.csv",
     "algorithm": "kNN/decision_tree/random_forest/naive_bayes/logistic_regression",
     "prediction": "columna_a_predecir",
     "f_score": "macro/micro/weighted",
-    "model": "modelo.pkl",
+    "model": "modelo.sav",
+    "sep": ";",
     "preprocessing": {
         "pnn": true/false,
-        "sampling": "oversampling/undersampling/SMOTE/ADASYN",
+        "sampling": "none/oversampling/undersampling/SMOTE/ADASYN",
         "scaler": "minmax/maxabs/zscore/standard",
         "unique_category_threshold": value,
         "text_process": "tf-idf/bow",
@@ -66,7 +87,7 @@ python3 clasificador.py --json archivo_config.json --mode train/test [-v/--verbo
     },
     "naive_bayes": {
         "alpha": [value1, value2, ..., valueN],
-        "fit_prior": [true, false] 
+        "fit_prior": [true, false]
     },
     "logistic_regression": {
         "C": [value1, value2, ..., valueN],
